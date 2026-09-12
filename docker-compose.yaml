@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_PASSWORD: dev
+      POSTGRES_USER: postgres
+      POSTGRES_DB: social-studio
+    ports:
+      - "5432:5432"
+    volumes: ["db-data:/var/lib/postgresql"]
+
+
+volumes:
+  db-data:
