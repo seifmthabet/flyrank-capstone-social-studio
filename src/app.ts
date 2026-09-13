@@ -1,4 +1,5 @@
 import express  from "express"
+import postsRouter from "./modules/posts/posts.route.js";
 
 const app = express()
 
@@ -11,5 +12,7 @@ app.get("/health", (req, res) => {
         }
     )
 })
+
+app.use("/api/posts", postsRouter);
 
 export default app

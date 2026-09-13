@@ -28,6 +28,7 @@ interface IngestUrlInput {
 interface IPostService {
     ingestMarkdown: (input: IngestMarkdownInput) => Promise<Post>;
     ingestUrl: (input: IngestUrlInput) => Promise<Post>;
+    getPostById: (id: string) => Promise<Post | null>;
 }
 
 export type { Post, CreatePostInput, IPostRepository , IPostService, IngestUrlInput, IngestMarkdownInput};

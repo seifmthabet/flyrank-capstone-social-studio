@@ -3,7 +3,7 @@ import type {UrlFetcher} from "../../ingestion/url-fetcher.js";
 import type {ArticleExtractor} from "../../ingestion/article-extractor.js";
 import type {MarkdownConverter} from "../../ingestion/markdown-converter.js";
 
-export class PostsService implements IPostService{
+export class PostService implements IPostService{
     constructor(
         private readonly urlfetcher: UrlFetcher,
         private readonly articleExtractor: ArticleExtractor,
@@ -44,5 +44,15 @@ export class PostsService implements IPostService{
             sourceUrl: url,
             content
         })
+    }
+
+    async getPostById(id: string): Promise<Post | null> {
+        const post = this.postRepository.findById(id)
+
+        if (!post) {
+            throw new Error("Post not found");
+        }
+
+        return post;
     }
 }
