@@ -17,57 +17,33 @@ const postsRouter = Router()
 
 
 postsRouter.post("/", async (req: Request, res: Response) => {
-    try {
-        const { sourceType, url, content } = req.body;
+    const { sourceType, url, content } = req.body;
 
-        if (sourceType === "markdown") {
-            const post = await postService.ingestMarkdown(content);
-            return res.status(201). json({
-                data: post
-            })
-        }
-
-        if (sourceType === "url") {
-            const post = await postService.ingestUrl({url});
-            return res.status(201).json({
-                data: post
-            })
-        }
-
-        return res.status(400).json({
-            error: "sourceType must be either 'url' or 'markdown' "
-        })
-
-    } catch (error) {
-        console.error(error)
-        return res.status(500).json({
-            error: "Failed ingest post"
+    if (sourceType === "markdown") {
+        const post = await postService.ingestMarkdown(content);
+        return res.status(201). json({
+            data: post
         })
     }
+
+    if (sourceType === "url") {
+        const post = await postService.ingestUrl({url});
+        return res.status(201).json({
+            data: post
+        })
+    }
+
+    return res.status(400).json({
+        error: "sourceType must be either 'url' or 'markdown' "
+    })
 })
 
 postsRouter.get("/:id", async (req: Request, res: Response) => {
-    try {
-        const postId = String(req.params.id)
-
-        const post = await postService.getPostById(postId)
-
-        if (!post) {
-            return res.status(404).json({
-                message: "post not found"
-            })
-        }
-
-        return res.status(200).json({
-            data: post
-        })
-
-    } catch (error) {
-        console.error(error)
-        return res.status(500).json({
-            error: "Failed to get post"
-        })
-    }
+    const postId = String(req.params.id)
+    const post = await postService.getPostById(postId)
+    return res.status(200).json({
+        data: post
+    })
 })
 
 

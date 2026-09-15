@@ -87,3 +87,18 @@ create index idx_publish_attempts_schedule_id on publish_attempts (schedule_id);
 create index idx_publish_attempts_status on publish_attempts (status);
 create index idx_publish_attempts_started_at on publish_attempts (started_at desc);
 
+create table generation_jobs (
+    id uuid primary key default gen_random_uuid(),
+    post_id uuid not null references posts(id) on delete cascade,
+    status varchar(20) not null default 'queued' check (status in ('queued', 'processing', 'completed', 'failed')),
+    attempts integer not null default 0 check (attempts >= 0),
+    error text,
+    started_at timestamp,
+    completed_at timestamp,
+    created_at timestamp not null default now(),
+    updated_at timestamp not null default now()
+);
+
+create index idx_generation_jobs_post_id on generation_jobs (post_id);
+create index idx_generation_jobs_status on generation_jobs (status);
+create index idx_generation_jobs_created_at on generation_jobs (created_at desc);

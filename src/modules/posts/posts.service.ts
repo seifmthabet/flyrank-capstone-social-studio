@@ -2,6 +2,7 @@ import type {IngestMarkdownInput, IngestUrlInput, IPostRepository, IPostService,
 import type {UrlFetcher} from "../../ingestion/url-fetcher.js";
 import type {ArticleExtractor} from "../../ingestion/article-extractor.js";
 import type {MarkdownConverter} from "../../ingestion/markdown-converter.js";
+import {AppError} from "../../shared/error.js";
 
 export class PostService implements IPostService{
     constructor(
@@ -50,7 +51,7 @@ export class PostService implements IPostService{
         const post = this.postRepository.findById(id)
 
         if (!post) {
-            throw new Error("Post not found");
+            throw AppError.notFound("Post not found");
         }
 
         return post;
