@@ -1,5 +1,6 @@
 import {JSDOM} from "jsdom";
 import {Readability} from "@mozilla/readability";
+import {AppError} from "../shared/error.js";
 
 interface ExtractArticle {
     title: string | null;
@@ -20,7 +21,7 @@ export class ArticleExtractor {
         const article = reader.parse();
 
         if (!article) {
-            throw new Error("Failed to parse article");
+            throw AppError.badRequest("Failed to parse article");
         }
 
         return {

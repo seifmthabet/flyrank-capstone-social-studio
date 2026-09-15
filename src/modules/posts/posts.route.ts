@@ -4,6 +4,7 @@ import {MarkdownConverter} from "../../ingestion/markdown-converter.js";
 import {PostRepository} from "./posts.repository.js";
 import {PostService} from "./posts.service.js";
 import {Router, type Request, type Response} from "express";
+import {createPostSchema} from "./posts.schema.js";
 
 
 const urlFeatcher = new UrlFetcher();
@@ -17,17 +18,25 @@ const postsRouter = Router()
 
 
 postsRouter.post("/", async (req: Request, res: Response) => {
-    const { sourceType, url, content } = req.body;
+    const parsed = createPostSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+        return res.status(400).json({
+            error: parsed.error.flatten()
+        })
+    }
+
+    const { sourceType, url, content } = parsed.data;
 
     if (sourceType === "markdown") {
-        const post = await postService.ingestMarkdown(content);
+        const post = await postService.ingestMarkdown({content: content!});
         return res.status(201). json({
             data: post
         })
     }
 
     if (sourceType === "url") {
-        const post = await postService.ingestUrl({url});
+        const post = await postService.ingestUrl({url: url!});
         return res.status(201).json({
             data: post
         })

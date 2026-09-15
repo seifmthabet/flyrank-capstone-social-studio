@@ -36,6 +36,10 @@ generationWorker.on("failed", async (job, error) => {
 
     if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
         const data = job.data as GenerationJobData;
-        await generationRepository.setStatusFailed(data.generationJobId, error.message);
+        try {
+            await generationRepository.setStatusFailed(data.generationJobId, error.message);
+        } catch (dbError) {
+            console.error(`Failed to update generation job ${data.generationJobId} status to failed`, dbError);
+        }
     }
 });

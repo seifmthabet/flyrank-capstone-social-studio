@@ -21,4 +21,8 @@ export class AppError extends Error {
     static conflict (message: string, code="CONFLICT", details?: unknown) {
         return new AppError(409, code, message, details);
     }
+
+    static internal (message: string, code="INTERNAL_ERROR", details?: unknown) {
+        return new AppError(500, code, message, details);
+    }
 }

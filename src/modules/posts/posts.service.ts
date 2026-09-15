@@ -16,10 +16,10 @@ export class PostService implements IPostService{
         const content = input.content.trim();
 
         if (!content) {
-            throw new Error("Content is required");
+            throw AppError.badRequest("Markdown content is required");
         }
 
-        return this.postRepository.create({
+        return await this.postRepository.create({
             sourceType: "markdown",
             sourceUrl: null,
             content
@@ -30,7 +30,7 @@ export class PostService implements IPostService{
         const url = input.url.trim();
 
         if (!url) {
-            throw new Error("URL is required");
+            throw AppError.badRequest("URL is required");
         }
 
         const html = await this.urlfetcher.fetch(url);
@@ -38,10 +38,10 @@ export class PostService implements IPostService{
         const content = this.markdownConverter.convert(article.content);
 
         if (!content) {
-            throw new Error("Failed to convert article to markdown");
+            throw AppError.badRequest("Failed to extract content from the URL");
         }
 
-        return this.postRepository.create({
+        return await this.postRepository.create({
             sourceType: "url",
             sourceUrl: url,
             content
@@ -49,7 +49,7 @@ export class PostService implements IPostService{
     }
 
     async getPostById(id: string): Promise<Post | null> {
-        const post = this.postRepository.findById(id)
+        const post = await this.postRepository.findById(id)
 
         if (!post) {
             throw AppError.notFound("Post not found");

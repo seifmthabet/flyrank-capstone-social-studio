@@ -10,10 +10,12 @@ const app = express()
 const { generationService } = createGenerationContainer();
 
 app.use(express.json())
-app.use(errorHandler)
 
 app.use("/api/posts", postsRouter);
 app.use("/api", createGenerationRoute({ generationService }))
+
+app.use(errorHandler)
+
 
 app.get("/health", (req, res) => {
     res.status(200).json(

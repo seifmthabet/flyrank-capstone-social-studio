@@ -27,10 +27,18 @@ export class GenerationService implements IGenerationService {
         }
 
         const job = await this.generationRepository.create(postId);
-        await enqueueGenerationJob({
-            generationJobId: job.id,
-            postId
-        })
+
+        try {
+            await enqueueGenerationJob({
+                generationJobId: job.id,
+                postId
+            })
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Failed to enqueue generation job";
+            await this.generationRepository.setStatusFailed(job.id, message).catch((err) => {});
+
+            throw AppError.internal(message, "ENQUEUE_FAILED");
+        }
 
         return job;
     }
@@ -87,9 +95,7 @@ export class GenerationService implements IGenerationService {
     private async ensureNothingApprovedOrPublished(postId: string): Promise<void> {
         const variants = await this.variantsRepository.findByPostId(postId);
 
-        const locked = variants.find((v) => {
-            v.status === "approved" || v.status === "published";
-        })
+        const locked = variants.find((v) => v.status === "approved" || v.status === "published");
 
         if (locked) {
             throw AppError.conflict(

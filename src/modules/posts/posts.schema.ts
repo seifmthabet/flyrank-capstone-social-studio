@@ -3,7 +3,7 @@ import z from "zod";
 export const postSchema = z.object({
     id: z.string(),
     sourceType: z.enum(["url", "markdown"]),
-    sourceUrl: z.string(),
+    sourceUrl: z.string().nullable(),
     content: z.string(),
     createdAt: z.date(),
     updatedAt: z.date()
@@ -11,8 +11,8 @@ export const postSchema = z.object({
 
 export const createPostSchema = z.object({
     sourceType: z.enum(["url", "markdown"]),
-    sourceUrl: z.string().nullable(),
-    content: z.string()
+    url: z.string().nullable(),
+    content: z.string().nullable()
 })
 
 

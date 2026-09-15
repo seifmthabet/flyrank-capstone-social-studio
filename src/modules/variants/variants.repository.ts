@@ -52,9 +52,18 @@ export class VariantsRepository implements IVariantsRepository {
                     ON CONFLICT (post_id, platform_id)
                     DO UPDATE SET
                         content = EXCLUDED.content,
+                        status = CASE 
+                            WHEN variants.status = 'rejected' THEN 'draft'
+                            ELSE variants.status
+                       END,
+                        rejection_reason = CASE 
+                            WHEN variants.status = 'rejected' THEN NULL
+                            ELSE variants.rejection_reason
+                        END,
                         generation_provider = EXCLUDED.generation_provider,
                         generation_model = EXCLUDED.generation_model,
                         updated_at = NOW()
+                    WHERE variants.status NOT IN ('approved', 'scheduled', 'published')
                 `, [postId, input.platformId, input.content, input.provider, input.model]);
             }
 
