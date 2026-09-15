@@ -18,6 +18,9 @@ const jobOptions = {
 
 let queue: Queue | null = null;
 
+/**
+ * Adds a variant-generation job to the shared queue with retry and exponential backoff.
+ */
 export const enqueueGenerationJob = async (data: GenerationJobData) => {
     queue ??= new Queue('generation', {
         connection,
@@ -28,5 +31,4 @@ export const enqueueGenerationJob = async (data: GenerationJobData) => {
     });
     await queue.add('generate-variants', data, jobOptions)
 }
-
 

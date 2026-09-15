@@ -6,6 +6,7 @@ export interface Prompt {
     user: string;
 }
 
+/** Builds the system constraints and source-content prompt for variant generation. */
 export const generatePrompt = (input: GenerateVariantInput) => {
     const {postContent, platform} = input;
     const system = [

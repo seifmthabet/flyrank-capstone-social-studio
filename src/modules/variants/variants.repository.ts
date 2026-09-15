@@ -30,6 +30,7 @@ const mapVariantRow = (row: VariantRow): Variant => ({
 });
 
 export class VariantsRepository implements IVariantsRepository {
+    /** Returns all variants associated with a post. */
     async findByPostId(postId: string): Promise<Variant[]> {
         const result = await pool.query<VariantRow>(`
             SELECT ${VARIANT_COLUMNS}
@@ -39,6 +40,10 @@ export class VariantsRepository implements IVariantsRepository {
 
         return result.rows.map(mapVariantRow);
     }
+    /**
+     * Atomically inserts or refreshes one variant per platform for a post.
+     * Existing variant status and rejection details are preserved during refreshes.
+     */
     async upsertVariants(postId: string, inputs: UpsertVariantInput[]): Promise<void> {
         const client = await pool.connect();
 

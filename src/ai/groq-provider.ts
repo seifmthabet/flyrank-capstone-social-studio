@@ -35,6 +35,12 @@ export class GroqAiProvider implements AiProvider {
         return this.client;
 
     }
+    /**
+     * Generates a platform-specific variant and parses the provider's JSON response.
+     *
+     * @throws {AppError} If the provider returns no content or content with an invalid shape.
+     * @throws {SyntaxError} If the provider response is not valid JSON.
+     */
     async  generateVariant(input: GenerateVariantInput): Promise<GenerateVariantResult> {
         const { system, user } = generatePrompt(input);
 

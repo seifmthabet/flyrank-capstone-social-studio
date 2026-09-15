@@ -12,6 +12,11 @@ export class PostService implements IPostService{
         private readonly postRepository: IPostRepository
     ) {}
 
+    /**
+     * Trims and persists Markdown as a post without a source URL.
+     *
+     * @throws {Error} If the Markdown is blank.
+     */
     async ingestMarkdown(input: IngestMarkdownInput): Promise<Post> {
         const content = input.content.trim();
 
@@ -26,6 +31,12 @@ export class PostService implements IPostService{
         })
     }
 
+    /**
+     * Fetches an article, converts its extracted HTML to Markdown, and persists the post.
+     * Fetch and article-extraction failures are propagated.
+     *
+     * @throws {Error} If the URL is blank or the converted article is empty.
+     */
     async ingestUrl(input: IngestUrlInput): Promise<Post> {
         const url = input.url.trim();
 
@@ -48,6 +59,7 @@ export class PostService implements IPostService{
         })
     }
 
+    /** Returns a post by ID, or `null` when it does not exist. */
     async getPostById(id: string): Promise<Post | null> {
         const post = this.postRepository.findById(id)
 

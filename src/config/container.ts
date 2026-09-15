@@ -12,6 +12,7 @@ export interface GenerationContainer {
     generationRepository: IGenerationRepository;
 }
 
+/** Creates a generation service and exposes the repository instance backing it. */
 export const createGenerationContainer = (): GenerationContainer => {
     const generationRepository = new GenerationRepository();
 

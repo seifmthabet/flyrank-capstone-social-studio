@@ -31,6 +31,7 @@ const mapGenerationJobRow = (row: GenerationJobRow): GenerationJob => ({
 export class GenerationRepository implements IGenerationRepository {
     constructor() {}
 
+    /** Persists and returns a generation job in its initial queued state. */
     async create(postId: string): Promise<GenerationJob> {
         const result = await pool.query<GenerationJobRow>(`
             INSERT INTO generation_jobs (post_id)
@@ -41,6 +42,7 @@ export class GenerationRepository implements IGenerationRepository {
         return mapGenerationJobRow(result.rows[0]!);
     }
 
+    /** Returns a generation job by ID, or `null` when it does not exist. */
     async findById(id: string): Promise<GenerationJob | null> {
         const result = await pool.query<GenerationJobRow>(`
             SELECT ${JOB_COLUMNS}
@@ -54,6 +56,7 @@ export class GenerationRepository implements IGenerationRepository {
 
     }
 
+    /** Marks a job as processing, increments its attempt count, and records its start time. */
     async setStatusProcessing(id: string): Promise<void> {
         await pool.query(`
             UPDATE generation_jobs
@@ -62,6 +65,7 @@ export class GenerationRepository implements IGenerationRepository {
         `, [id]);
     }
 
+    /** Marks a job as completed and records its completion time. */
     async setStatusCompleted(id: string): Promise<void> {
         await pool.query(`
             UPDATE generation_jobs
@@ -70,6 +74,7 @@ export class GenerationRepository implements IGenerationRepository {
         `, [id]);
     }
 
+    /** Marks a job as failed and stores the provided error and completion time. */
     async setStatusFailed(id: string, error: string): Promise<void> {
         await pool.query(`
             UPDATE generation_jobs

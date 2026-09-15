@@ -19,6 +19,11 @@ export class GenerationService implements IGenerationService {
         private readonly aiProvider: AiProvider,
     ) {}
 
+    /**
+     * Creates and queues a generation job for an existing post.
+     *
+     * @throws {AppError} If the post does not exist.
+     */
     async createGenerationJob(postId: string): Promise<GenerationJob> {
         const post = await this.postRepository.findById(postId);
 
@@ -35,6 +40,11 @@ export class GenerationService implements IGenerationService {
         return job;
     }
 
+    /**
+     * Retrieves a generation job by ID.
+     *
+     * @throws {AppError} If the job does not exist.
+     */
     async getGenerationJob(id: string): Promise<GenerationJob> {
         const job = await this.generationRepository.findById(id);
 
@@ -45,6 +55,11 @@ export class GenerationService implements IGenerationService {
         return job;
     }
 
+    /**
+     * Generates and persists a variant for every enabled platform, then completes the job.
+     *
+     * @throws {AppError} If the post is missing or no platforms are enabled.
+     */
     async processGenerationJob(jobId: string, postId: string): Promise<void> {
         await this.generationRepository.setStatusProcessing(jobId);
 
@@ -71,6 +86,7 @@ export class GenerationService implements IGenerationService {
         await this.generationRepository.setStatusCompleted(jobId);
     }
 
+    /** Generates and validates one platform variant while retaining provider metadata. */
     private async generateVariantForPlatform(postContent: string, platform: Platform) {
         const result = await this.aiProvider.generateVariant({ postContent, platform });
         this.validator.validate(result.content, platform)
@@ -99,4 +115,3 @@ export class GenerationService implements IGenerationService {
         }
     }
 }
-

@@ -28,6 +28,7 @@ const mapPlatformRow = (row: PlatformRow): Platform => ({
 });
 
 export class PlatformsRepository implements IPlatformRepository {
+    /** Returns enabled platforms ordered by name. */
     async listEnabled(): Promise<Platform[]> {
         const result = await pool.query<PlatformRow>(`
             SELECT id, code, name, max_length, tone, max_hashtags, adapter, enabled, created_at, updated_at

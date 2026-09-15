@@ -11,6 +11,13 @@ interface ExtractArticle {
 
 export class ArticleExtractor {
     constructor() {}
+    /**
+     * Extracts article metadata and HTML content from a document.
+     *
+     * The URL establishes the document base URL used while parsing the HTML.
+     *
+     * @throws {Error} If Readability cannot identify an article.
+     */
     extract(html: string, url: string) : ExtractArticle {
         const dom = new JSDOM(html, {
             url

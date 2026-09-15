@@ -2,6 +2,7 @@ import type {IGenerationService} from "./generation.types.js";
 import { Router, type Request, type Response } from "express";
 
 
+/** Creates routes for starting generation and retrieving generation-job state. */
 export const createGenerationRoute = (deps: { generationService: IGenerationService }) => {
     const generationRouter = Router();
 

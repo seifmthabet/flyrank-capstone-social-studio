@@ -22,6 +22,7 @@ const mapPostRow = (row: PostRow): Post => {
 }
 
 export class PostRepository implements IPostRepository{
+    /** Persists and returns a post. */
     async create(input: CreatePostInput): Promise<Post> {
         const result = await pool.query<PostRow>(`
         INSERT INTO posts (source_type, source_url, content) VALUES ($1, $2, $3) RETURNING id, source_type, source_url, content, created_at, updated_at
@@ -29,6 +30,7 @@ export class PostRepository implements IPostRepository{
         return mapPostRow(result.rows[0]!);
     }
 
+    /** Returns a post by ID, or `null` when it does not exist. */
     async findById(id: string): Promise<Post | null> {
         const result = await pool.query<PostRow>(`
         SELECT id, source_type, source_url, content, created_at, updated_at FROM posts WHERE id = $1

@@ -12,6 +12,7 @@ export class MarkdownConverter {
         })
     }
 
+    /** Converts HTML to trimmed Markdown using ATX headings and fenced code blocks. */
     convert(html: string): string {
         return this.turndown.turndown(html).trim();
     }
