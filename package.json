@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "node --import tsx --watch src/index.ts",
     "start": "node --import tsx src/index.ts",
+    "start:worker": "node --import tsx src/modules/generation/generation.worker.ts",
+    "test": "node --import tsx --test",
     "db:migrate": "tsx src/scripts/migrate.ts",
     "db:seed": "tsx src/scripts/seed.ts"
   },
@@ -14,14 +16,23 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@mozilla/readability": "^0.6.0",
     "@types/pg": "^8.23.1",
+    "bullmq": "^6.3.4",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "pg": "^8.23.0"
+    "ioredis": "^6.0.0",
+    "jsdom": "^30.0.1",
+    "openai": "^7.15.0",
+    "pg": "^8.23.0",
+    "turndown": "^7.2.4",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
+    "@types/jsdom": "^30.0.0",
     "@types/node": "^22.20.2",
+    "@types/turndown": "^5.0.6",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2"
   }
