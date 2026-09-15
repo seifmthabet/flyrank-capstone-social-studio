@@ -21,6 +21,7 @@ export class PostService implements IPostService{
 
         return this.postRepository.create({
             sourceType: "markdown",
+            sourceUrl: null,
             content
         })
     }

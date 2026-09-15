@@ -1,0 +1,24 @@
+import type {Post} from "../modules/posts/posts.schema.js";
+import type {GenerateVariantInput} from "./ai-provider.js";
+
+export interface Prompt {
+    system: string;
+    user: string;
+}
+
+export const generatePrompt = (input: GenerateVariantInput) => {
+    const {postContent, platform} = input;
+    const system = [
+        `You are a professional social media copywriter for ${platform.name}.`,
+        "Obey the platform's constraints strictly.",
+        `- Max length: ${platform.maxLength} characters.`,
+        `- Tone: ${platform.tone}.`,
+        `- Max hashtags: ${platform.maxHashtags}.`,
+        `Respond with a single JSON object in this exact shape: {"content": "your variant text here"}.`,
+    ].join("\n");
+
+    return {
+        system,
+        user: `Source article:\n\n${postContent}\n\nGenerate the platform variant now.`,
+    };
+}

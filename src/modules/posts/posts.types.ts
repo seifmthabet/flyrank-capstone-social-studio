@@ -1,17 +1,4 @@
-interface Post {
-    id: string;
-    sourceType: "url" | "markdown";
-    sourceUrl: string | null;
-    content: string;
-    createdAt: Date;
-    updatedAt: Date;
-}
-
-interface CreatePostInput {
-    sourceType: "url" | "markdown";
-    sourceUrl?: string;
-    content: string;
-}
+import type {CreatePostInput, Post} from "./posts.schema.js";
 
 interface IPostRepository {
     create: (input: CreatePostInput) => Promise<Post>;

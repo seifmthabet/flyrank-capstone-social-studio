@@ -4,7 +4,7 @@ import pool from "../../database/db.js";
 interface PostRow {
     id: string;
     source_type: "url" | "markdown";
-    source_url: string | null;
+    source_url: string;
     content: string;
     created_at: Date;
     updated_at: Date;
