@@ -9,11 +9,16 @@ export const postSchema = z.object({
     updatedAt: z.date()
 })
 
-export const createPostSchema = z.object({
-    sourceType: z.enum(["url", "markdown"]),
-    url: z.string().nullable(),
-    content: z.string().nullable()
-})
+export const createPostSchema = z.discriminatedUnion("sourceType", [
+    z.object({
+        sourceType: z.literal("url"),
+        url: z.string().trim().min(1),
+    }),
+    z.object({
+        sourceType: z.literal("markdown"),
+        content: z.string().trim().min(1),
+    }),
+]);
 
 
 export type CreatePostInput = z.infer<typeof createPostSchema>
