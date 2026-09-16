@@ -21,7 +21,6 @@ export class PostService implements IPostService{
 
         return await this.postRepository.create({
             sourceType: "markdown",
-            sourceUrl: null,
             content
         })
     }
@@ -43,8 +42,7 @@ export class PostService implements IPostService{
 
         return await this.postRepository.create({
             sourceType: "url",
-            sourceUrl: url,
-            content
+            url: url
         })
     }
 

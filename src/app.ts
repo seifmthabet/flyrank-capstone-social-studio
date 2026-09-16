@@ -1,18 +1,21 @@
 import express  from "express"
-import postsRouter from "./modules/posts/posts.route.js";
+import {createPostsRoute} from "./modules/posts/posts.route.js";
 import {errorHandler} from "./middlewares/error-handler.js";
 import {createGenerationRoute} from "./modules/generation/generation.route.js";
-import {GenerationService} from "./modules/generation/generation.service.js";
-import {createGenerationContainer} from "./config/container.js";
+import {createGenerationContainer, createPostContainer, createVariantsContainer} from "./config/container.js";
+import {createVariantsRoute} from "./modules/variants/variants.route.js";
 
 const app = express()
 
+const { postService } = createPostContainer();
 const { generationService } = createGenerationContainer();
+const { variantsService } = createVariantsContainer();
 
 app.use(express.json())
 
-app.use("/api/posts", postsRouter);
+app.use("/api/posts", createPostsRoute({ postService }))
 app.use("/api", createGenerationRoute({ generationService }))
+app.use("/api/variants", createVariantsRoute({ variantsService }))
 
 app.use(errorHandler)
 

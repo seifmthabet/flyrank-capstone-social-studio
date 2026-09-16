@@ -17,5 +17,10 @@ export const createGenerationRoute = (deps: { generationService: IGenerationServ
         res.status(200).json({ data: job });
     });
 
+    generationRouter.get("/posts/:id/variants", async (req: Request, res: Response) => {
+        const variants = await deps.generationService.getGenerationVariants(String(req.params.id));
+        res.status(200).json({ data: variants });
+    });
+
     return generationRouter;
 }

@@ -2,7 +2,7 @@ import type {GenerationJob, IGenerationRepository, IGenerationService} from "./g
 import {VariantValidator} from "../../ai/variant-validator.js";
 import type {IPostRepository} from "../posts/posts.types.js";
 import type {IPlatformRepository, Platform} from "../platforms/platforms.types.js";
-import type {IVariantsRepository} from "../variants/variants.types.js";
+import type {IVariantsRepository, Variant} from "../variants/variants.types.js";
 import type {AiProvider} from "../../ai/ai-provider.js";
 import {AppError} from "../../shared/error.js";
 import {enqueueGenerationJob} from "./generation.queue.js";
@@ -77,6 +77,14 @@ export class GenerationService implements IGenerationService {
         await this.variantsRepository.upsertVariants(postId, results);
 
         await this.generationRepository.setStatusCompleted(jobId);
+    }
+
+    async getGenerationVariants(postId: string): Promise<Variant[]> {
+        const variants = await this.variantsRepository.findByPostId(postId);
+        if (!variants) {
+            throw AppError.notFound(`No variants found for post ${postId}`, "VARIANTS_NOT_FOUND");
+        }
+        return variants;
     }
 
     private async generateVariantForPlatform(postContent: string, platform: Platform) {
