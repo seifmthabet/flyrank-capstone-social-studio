@@ -1,3 +1,5 @@
+import type {Variant} from "../variants/variants.types.js";
+
 export type GenerationStatus = "queued" | "processing" | "completed" | "failed";
 
 export interface GenerationJob {
@@ -28,5 +30,6 @@ export interface IGenerationRepository {
 export interface IGenerationService {
     createGenerationJob(postId: string): Promise<GenerationJob>;
     getGenerationJob(id: string): Promise<GenerationJob>;
+    getGenerationVariants(postId: string): Promise<Variant[]>;
     processGenerationJob(jobId: string, postId: string): Promise<void>;
 }

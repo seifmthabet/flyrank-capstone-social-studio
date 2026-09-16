@@ -1,5 +1,6 @@
 import type {IVariantsRepository, UpsertVariantInput, Variant, VariantStatus} from "./variants.types.js";
 import pool from "../../database/db.js";
+import {AppError} from "../../shared/error.js";
 
 interface VariantRow {
     id: string;
@@ -73,6 +74,51 @@ export class VariantsRepository implements IVariantsRepository {
             throw error;
         } finally {
             client.release();
+        }
+    }
+
+    async findById(variantId: string): Promise<Variant | null> {
+        const result = await pool.query(`
+            SELECT ${VARIANT_COLUMNS}
+            FROM variants
+            WHERE id = $1
+        `, [variantId]);
+        return result.rows.length > 0 ? mapVariantRow(result.rows[0]) : null;
+    }
+
+    async editVariant(variantId: string, content: string): Promise<void> {
+        const result = await pool.query(`
+            UPDATE variants
+            SET content = $1, updated_at = NOW()
+            WHERE id = $2
+        `, [content, variantId]);
+
+        if (result.rowCount === 0) {
+            throw AppError.notFound(`Variant with ID ${variantId} not found`);
+        }
+    }
+
+    async approveVariant(variantId: string): Promise<void> {
+        const result = await pool.query(`
+            UPDATE variants
+            SET status = 'approved', updated_at = NOW()
+            WHERE id = $1
+        `, [variantId]);
+
+        if (result.rowCount === 0) {
+            throw AppError.notFound(`Variant with ID ${variantId} not found`);
+        }
+    }
+
+    async rejectVariant(variantId: string, reason: string): Promise<void> {
+        const result = await pool.query(`
+            UPDATE variants
+            SET status = 'rejected', rejection_reason = $2, updated_at = NOW()
+            WHERE id = $1
+        `, [variantId, reason]);
+
+        if (result.rowCount === 0) {
+            throw AppError.notFound(`Variant with ID ${variantId} not found`);
         }
     }
 }

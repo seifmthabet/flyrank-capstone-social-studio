@@ -23,9 +23,18 @@ const mapPostRow = (row: PostRow): Post => {
 
 export class PostRepository implements IPostRepository{
     async create(input: CreatePostInput): Promise<Post> {
-        const result = await pool.query<PostRow>(`
-        INSERT INTO posts (source_type, source_url, content) VALUES ($1, $2, $3) RETURNING id, source_type, source_url, content, created_at, updated_at
-        `,[input.sourceType, input.sourceUrl, input.content]);
+        let result;
+
+        if (input.sourceType === "url") {
+            result = await pool.query<PostRow>(`
+                 INSERT INTO posts (source_type, source_url, content) VALUES ($1, $2, $3) RETURNING id, source_type, source_url, content, created_at, updated_at
+                    `,[input.sourceType, input.url, input.content]);
+        } else {
+             result = await pool.query<PostRow>(`
+                INSERT INTO posts (source_type, content) VALUES ($1, $2) RETURNING id, source_type, source_url, content, created_at, updated_at
+                    `,[input.sourceType, input.content]);
+        }
+
         return mapPostRow(result.rows[0]!);
     }
 
