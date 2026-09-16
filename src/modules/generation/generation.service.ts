@@ -81,7 +81,7 @@ export class GenerationService implements IGenerationService {
 
     async getGenerationVariants(postId: string): Promise<Variant[]> {
         const variants = await this.variantsRepository.findByPostId(postId);
-        if (!variants) {
+        if (variants.length === 0) {
             throw AppError.notFound(`No variants found for post ${postId}`, "VARIANTS_NOT_FOUND");
         }
         return variants;
