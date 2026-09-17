@@ -35,6 +35,12 @@ export class GroqAiProvider implements AiProvider {
         return this.client;
 
     }
+
+    private stripCodeFences(text: string): string {
+        const trimmed = text.trim();
+        const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+        return fenced?.[1]?.trim() ?? trimmed;
+    }
     async  generateVariant(input: GenerateVariantInput): Promise<GenerateVariantResult> {
         const { system, user } = generatePrompt(input);
 
@@ -45,6 +51,7 @@ export class GroqAiProvider implements AiProvider {
                 { role: "user", content: user },
             ],
             temperature: 0.7,
+            response_format: { type: "json_object" },
         })
 
         const content = completion.choices[0]?.message?.content;
@@ -52,7 +59,14 @@ export class GroqAiProvider implements AiProvider {
             throw AppError.badRequest("AI did not return any content", "AI_NO_CONTENT");
         }
 
-        const parsed = aiResponseSchema.safeParse(JSON.parse(content));
+        let raw: unknown;
+        try {
+            raw = JSON.parse(this.stripCodeFences(content));
+        } catch (error) {
+            throw AppError.badRequest("AI provider returned output that is not valid JSON", "AI_INVALID_RESPONSE");
+        }
+
+        const parsed = aiResponseSchema.safeParse(raw);
         if (!parsed.success) {
             throw AppError.badRequest(
                 "AI provider returned an unparseable variant",

@@ -14,7 +14,9 @@ export const generatePrompt = (input: GenerateVariantInput) => {
         `- Max length: ${platform.maxLength} characters.`,
         `- Tone: ${platform.tone}.`,
         `- Max hashtags: ${platform.maxHashtags}.`,
-        `Respond with a single JSON object in this exact shape: {"content": "your variant text here"}.`,
+        `Respond with ONLY a JSON object in this exact shape: {"content": "your variant text here"}.`,
+        `Do not wrap the JSON in Markdown code fences.`,
+        `Do not add any text before or after the JSON.`,
     ].join("\n");
 
     return {
