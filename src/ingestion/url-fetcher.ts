@@ -12,7 +12,7 @@ export class UrlFetcher {
         });
 
         if (!response.ok) {
-            throw AppError.badRequest("Failed to fetch URL: ", response.status.toString(), response.statusText);
+            throw AppError.badRequest("URL_FETCH_FAILED", `Failed to fetch URL: ${url}. Status: ${response.status} ${response.statusText}`);
         }
 
         return response.text();
