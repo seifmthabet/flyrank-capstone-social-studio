@@ -1,12 +1,21 @@
-import type {GenerationJob, IGenerationRepository, IGenerationService} from "./generation.types.js";
-import {VariantValidator} from "../../ai/variant-validator.js";
-import type {IPostRepository} from "../posts/posts.types.js";
-import type {IPlatformRepository, Platform} from "../platforms/platforms.types.js";
-import type {IVariantsRepository, Variant} from "../variants/variants.types.js";
-import type {AiProvider} from "../../ai/ai-provider.js";
-import {AppError} from "../../shared/error.js";
-import {enqueueGenerationJob} from "./generation.queue.js";
-
+import type { AiProvider } from "../../ai/ai-provider.js";
+import { VariantValidator } from "../../ai/variant-validator.js";
+import { AppError } from "../../shared/error.js";
+import type {
+    IPlatformRepository,
+    Platform,
+} from "../platforms/platforms.types.js";
+import type { IPostRepository } from "../posts/posts.types.js";
+import type {
+    IVariantsRepository,
+    Variant,
+} from "../variants/variants.types.js";
+import { enqueueGenerationJob } from "./generation.queue.js";
+import type {
+    GenerationJob,
+    IGenerationRepository,
+    IGenerationService,
+} from "./generation.types.js";
 
 export class GenerationService implements IGenerationService {
     private readonly validator = new VariantValidator();
@@ -31,11 +40,16 @@ export class GenerationService implements IGenerationService {
         try {
             await enqueueGenerationJob({
                 generationJobId: job.id,
-                postId
-            })
+                postId,
+            });
         } catch (error) {
-            const message = error instanceof Error ? error.message : "Failed to enqueue generation job";
-            await this.generationRepository.setStatusFailed(job.id, message).catch((err) => {});
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "Failed to enqueue generation job";
+            await this.generationRepository
+                .setStatusFailed(job.id, message)
+                .catch((_err) => {});
 
             throw AppError.internal(message, "ENQUEUE_FAILED");
         }
@@ -47,7 +61,10 @@ export class GenerationService implements IGenerationService {
         const job = await this.generationRepository.findById(id);
 
         if (!job) {
-            throw AppError.notFound("Generation job not found", "JOB_NOT_FOUND");
+            throw AppError.notFound(
+                "Generation job not found",
+                "JOB_NOT_FOUND",
+            );
         }
 
         return job;
@@ -65,14 +82,19 @@ export class GenerationService implements IGenerationService {
         const platforms = await this.platformRepository.listEnabled();
 
         if (platforms.length === 0) {
-            throw AppError.badRequest("No enabled platforms found", "NO_ENABLED_PLATFORMS");
+            throw AppError.badRequest(
+                "No enabled platforms found",
+                "NO_ENABLED_PLATFORMS",
+            );
         }
 
         await this.ensureNothingApprovedOrPublished(postId);
 
         const results = await Promise.all(
-            platforms.map((p) => this.generateVariantForPlatform(post.content, p))
-        )
+            platforms.map((p) =>
+                this.generateVariantForPlatform(post.content, p),
+            ),
+        );
 
         await this.variantsRepository.upsertVariants(postId, results);
 
@@ -82,28 +104,40 @@ export class GenerationService implements IGenerationService {
     async getGenerationVariants(postId: string): Promise<Variant[]> {
         const variants = await this.variantsRepository.findByPostId(postId);
         if (variants.length === 0) {
-            throw AppError.notFound(`No variants found for post ${postId}`, "VARIANTS_NOT_FOUND");
+            throw AppError.notFound(
+                `No variants found for post ${postId}`,
+                "VARIANTS_NOT_FOUND",
+            );
         }
         return variants;
     }
 
-    private async generateVariantForPlatform(postContent: string, platform: Platform) {
-        const result = await this.aiProvider.generateVariant({ postContent, platform });
-        this.validator.validate(result.content, platform)
+    private async generateVariantForPlatform(
+        postContent: string,
+        platform: Platform,
+    ) {
+        const result = await this.aiProvider.generateVariant({
+            postContent,
+            platform,
+        });
+        this.validator.validate(result.content, platform);
 
         return {
             platformId: platform.id,
             content: result.content,
             provider: result.provider,
             model: result.model,
-
-        }
+        };
     }
 
-    private async ensureNothingApprovedOrPublished(postId: string): Promise<void> {
+    private async ensureNothingApprovedOrPublished(
+        postId: string,
+    ): Promise<void> {
         const variants = await this.variantsRepository.findByPostId(postId);
 
-        const locked = variants.find((v) => v.status === "approved" || v.status === "published");
+        const locked = variants.find(
+            (v) => v.status === "approved" || v.status === "published",
+        );
 
         if (locked) {
             throw AppError.conflict(
@@ -113,4 +147,3 @@ export class GenerationService implements IGenerationService {
         }
     }
 }
-

@@ -1,6 +1,11 @@
-import type {IVariantsRepository, UpsertVariantInput, Variant, VariantStatus} from "./variants.types.js";
 import pool from "../../database/db.js";
-import {AppError} from "../../shared/error.js";
+import { AppError } from "../../shared/error.js";
+import type {
+    IVariantsRepository,
+    UpsertVariantInput,
+    Variant,
+    VariantStatus,
+} from "./variants.types.js";
 
 interface VariantRow {
     id: string;
@@ -15,7 +20,8 @@ interface VariantRow {
     updated_at: Date;
 }
 
-const VARIANT_COLUMNS = "id, post_id, platform_id, content, status, rejection_reason, generation_provider, generation_model, created_at, updated_at";
+const VARIANT_COLUMNS =
+    "id, post_id, platform_id, content, status, rejection_reason, generation_provider, generation_model, created_at, updated_at";
 
 const mapVariantRow = (row: VariantRow): Variant => ({
     id: row.id,
@@ -32,22 +38,29 @@ const mapVariantRow = (row: VariantRow): Variant => ({
 
 export class VariantsRepository implements IVariantsRepository {
     async findByPostId(postId: string): Promise<Variant[]> {
-        const result = await pool.query<VariantRow>(`
+        const result = await pool.query<VariantRow>(
+            `
             SELECT ${VARIANT_COLUMNS}
             FROM variants
             WHERE post_id = $1
-        `, [postId]);
+        `,
+            [postId],
+        );
 
         return result.rows.map(mapVariantRow);
     }
-    async upsertVariants(postId: string, inputs: UpsertVariantInput[]): Promise<void> {
+    async upsertVariants(
+        postId: string,
+        inputs: UpsertVariantInput[],
+    ): Promise<void> {
         const client = await pool.connect();
 
         try {
             await client.query("BEGIN");
 
             for (const input of inputs) {
-                await client.query(`
+                await client.query(
+                    `
                     INSERT INTO variants (post_id, platform_id, content, status, generation_provider, generation_model)
                     VALUES ($1, $2, $3, 'draft', $4, $5)
                     ON CONFLICT (post_id, platform_id)
@@ -65,7 +78,15 @@ export class VariantsRepository implements IVariantsRepository {
                         generation_model = EXCLUDED.generation_model,
                         updated_at = NOW()
                     WHERE variants.status NOT IN ('approved', 'scheduled', 'published')
-                `, [postId, input.platformId, input.content, input.provider, input.model]);
+                `,
+                    [
+                        postId,
+                        input.platformId,
+                        input.content,
+                        input.provider,
+                        input.model,
+                    ],
+                );
             }
 
             await client.query("COMMIT");
@@ -78,20 +99,26 @@ export class VariantsRepository implements IVariantsRepository {
     }
 
     async findById(variantId: string): Promise<Variant | null> {
-        const result = await pool.query(`
+        const result = await pool.query(
+            `
             SELECT ${VARIANT_COLUMNS}
             FROM variants
             WHERE id = $1
-        `, [variantId]);
+        `,
+            [variantId],
+        );
         return result.rows.length > 0 ? mapVariantRow(result.rows[0]) : null;
     }
 
     async editVariant(variantId: string, content: string): Promise<void> {
-        const result = await pool.query(`
+        const result = await pool.query(
+            `
             UPDATE variants
             SET content = $1, updated_at = NOW()
             WHERE id = $2
-        `, [content, variantId]);
+        `,
+            [content, variantId],
+        );
 
         if (result.rowCount === 0) {
             throw AppError.notFound(`Variant with ID ${variantId} not found`);
@@ -99,11 +126,14 @@ export class VariantsRepository implements IVariantsRepository {
     }
 
     async approveVariant(variantId: string): Promise<void> {
-        const result = await pool.query(`
+        const result = await pool.query(
+            `
             UPDATE variants
             SET status = 'approved', updated_at = NOW()
             WHERE id = $1
-        `, [variantId]);
+        `,
+            [variantId],
+        );
 
         if (result.rowCount === 0) {
             throw AppError.notFound(`Variant with ID ${variantId} not found`);
@@ -111,11 +141,14 @@ export class VariantsRepository implements IVariantsRepository {
     }
 
     async rejectVariant(variantId: string, reason: string): Promise<void> {
-        const result = await pool.query(`
+        const result = await pool.query(
+            `
             UPDATE variants
             SET status = 'rejected', rejection_reason = $2, updated_at = NOW()
             WHERE id = $1
-        `, [variantId, reason]);
+        `,
+            [variantId, reason],
+        );
 
         if (result.rowCount === 0) {
             throw AppError.notFound(`Variant with ID ${variantId} not found`);

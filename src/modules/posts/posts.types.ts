@@ -1,4 +1,4 @@
-import type {CreatePostInput, Post} from "./posts.schema.js";
+import type { CreatePostInput, Post } from "./posts.schema.js";
 
 interface IPostRepository {
     create: (input: CreatePostInput) => Promise<Post>;
@@ -18,4 +18,11 @@ interface IPostService {
     getPostById: (id: string) => Promise<Post | null>;
 }
 
-export type { Post, CreatePostInput, IPostRepository , IPostService, IngestUrlInput, IngestMarkdownInput};
+export type {
+    CreatePostInput,
+    IngestMarkdownInput,
+    IngestUrlInput,
+    IPostRepository,
+    IPostService,
+    Post,
+};

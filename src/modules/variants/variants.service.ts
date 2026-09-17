@@ -1,6 +1,9 @@
-import type {IVariantsRepository, IVariantsService, Variant} from "./variants.types.js";
-import {AppError} from "../../shared/error.js";
-
+import { AppError } from "../../shared/error.js";
+import type {
+    IVariantsRepository,
+    IVariantsService,
+    Variant,
+} from "./variants.types.js";
 
 export class VariantsService implements IVariantsService {
     constructor(private readonly variantsRepository: IVariantsRepository) {}
@@ -36,5 +39,4 @@ export class VariantsService implements IVariantsService {
         }
         await this.variantsRepository.rejectVariant(variantId, reason);
     }
-
 }

@@ -19,5 +19,7 @@ export interface GenerateVariantResult {
 }
 
 export interface AiProvider {
-    generateVariant(input: GenerateVariantInput): Promise<GenerateVariantResult>;
+    generateVariant(
+        input: GenerateVariantInput,
+    ): Promise<GenerateVariantResult>;
 }

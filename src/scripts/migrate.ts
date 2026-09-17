@@ -1,21 +1,22 @@
-import path from "path";
 import * as fs from "node:fs";
+import path from "node:path";
 import pool from "../database/db.js";
 
-
 const migrate = async () => {
-    const filePath = path.resolve("src/database/schema.sql")
+    const filePath = path.resolve("src/database/schema.sql");
 
-    const sql = fs.readFileSync(filePath, 'utf-8');
+    const sql = fs.readFileSync(filePath, "utf-8");
 
     await pool.query(sql);
 
     console.log("Database migrated successfully");
-}
+};
 
-migrate().catch((err) => {
-    console.error("Migration failed: ", err);
-    process.exit(1);
-}).finally(async () => {
-    await pool.end();
-})
+migrate()
+    .catch((err) => {
+        console.error("Migration failed: ", err);
+        process.exit(1);
+    })
+    .finally(async () => {
+        await pool.end();
+    });

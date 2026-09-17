@@ -1,4 +1,8 @@
-import type {PublisherInput, PublisherResult, SocialPublisher} from "../social-publisher.js";
+import type {
+    PublisherInput,
+    PublisherResult,
+    SocialPublisher,
+} from "../social-publisher.js";
 
 export class MockLinkedInPublisher implements SocialPublisher {
     async publish(input: PublisherInput): Promise<PublisherResult> {

@@ -2,136 +2,244 @@
 
 Turn one blog post into a reviewed, scheduled, multi-platform social media campaign.
 
-A post is submitted once — as a URL or pasted Markdown — and stored as the single source of truth. From that stored post the system generates one platform-specific variant per configured platform, validates each variant against that platform's constraint profile, routes it through human review, and publishes approved variants on a schedule through a single `SocialPublisher` abstraction.
+A post is submitted once — as a URL or pasted Markdown — and stored as the single source of truth. From that stored post the system generates one platform-specific variant per configured platform, validates each variant against that platform's constraint profile, routes it through human review, and is designed to publish approved variants on a schedule through a single `SocialPublisher` abstraction.
 
 The interesting part of this project is the **publishing workflow**, not the social APIs: validation, human approval, idempotent publishing, and an auditable attempt history that survives worker restarts.
 
-Full design rationale lives in [`docs/DESIGN.md`](docs/DESIGN.md).
+Full design rationale lives in [`docs/DESIGN.md`](docs/DESIGN.md). Remaining work is tracked in [`TASKS.md`](TASKS.md) and [`PLAN.md`](PLAN.md).
 
 ---
 
-## Status
+## Project status
 
-The foundation is in place; the feature work is in progress.
+This is a work in progress. The ingestion, generation, and review foundations are working; the scheduling and publishing core is not implemented yet. This section is kept honest on purpose.
 
-**Working today**
+### Working today
 
-- Express 5 + TypeScript app with a `GET /health` endpoint
-- PostgreSQL connection pool (`pg`)
-- Schema migration and platform seeding scripts
-- Dockerized PostgreSQL 18
+- Express 5 + TypeScript API (`GET /health`)
+- **Post ingestion**: URL (fetch → Readability → Markdown) and pasted Markdown, stored as the source of truth
+- **Platform constraint profiles** as configuration (rows in `platforms`, seeded)
+- **Variant generation** through a BullMQ queue + worker, using any OpenAI-compatible LLM
+- **Validation** of generated variants against `max_length` and `max_hashtags` before they are stored
+- **Review workflow**: get, edit, approve, and reject variant endpoints
+- **Publisher adapter layer**: one `SocialPublisher` interface with `TelegramPublisher`, `MockXPublisher`, and `MockLinkedInPublisher` behind a registry
+- Dockerized PostgreSQL 18 and Redis
 
-**Not yet implemented**
+### Not implemented yet
 
-- Post, variant, review, scheduling, and publish-history routes
-- Variant generation and the platform constraint validator
-- `SocialPublisher` adapters (Telegram, mock X, mock LinkedIn)
-- BullMQ worker and Redis (not yet in `docker-compose.yaml`)
-- Test suite
+- `POST /api/variants/:id/schedule` is a stub: it refuses unapproved variants but creates no schedule for approved ones
+- The publishing worker, durable scheduler, and exactly-once idempotency (the graded core)
+- `publish_attempts` is never written; there is no publish-history endpoint
+- Mock adapters log to the console but do not persist a preview
+- Tone is only requested in the prompt, not enforced by the validator
+- Edited variants are not re-validated against their platform profile
+- Automated tests (`npm test` currently runs 0 tests)
+- `docker compose` starts PostgreSQL and Redis only; the API and worker run on the host
+- `EVIDENCE.md` and `BUILDLOG.md` are not written yet
+
+---
+
+## Architecture
+
+Content flows down the left side. The reliability machinery guards the right side. Every publish is intended to go through the same interface.
+
+```text
+[blog post: URL or markdown]
+             |
+             v
+   ingest + store          --->     variant generator          --->   constraint validation
+                                              |                              |
+                                              v                              v
+                               review workflow:          draft -> approved | rejected
+                                              |
+                                              v
+                               scheduler (durable, resumable)   <-- NOT IMPLEMENTED
+                                              |
+                                              v
+                               SocialPublisher interface        <-- adapters exist, not wired
+                               +-- Telegram / Discord / Mastodon             (real)
+                               +-- MockX + MockLinkedIn                      (yours)
+                                              |
+                                              v
+                      publish history:            one slot = one post, always
+```
+
+Implemented request path:
+
+```text
+POST /api/posts
+      │  store source post
+      ▼
+POST /api/posts/:id/generate
+      │  enqueue BullMQ job
+      ▼
+worker (generation)
+      │  read stored post only
+      ▼
+AI provider ──► validate (length, hashtags) ──► upsert variants as DRAFT
+      ▼
+GET /api/posts/:id/variants
+      ▼
+human review: PATCH / approve / reject
+```
 
 ---
 
 ## Tech stack
 
-| Concern    | Choice                        |
-| ---------- | ----------------------------- |
-| Runtime    | Node.js + `tsx` (ESM)         |
-| Language   | TypeScript (strict)           |
-| API        | Express 5                     |
-| Database   | PostgreSQL 18                 |
-| Queue      | BullMQ + Redis *(planned)*    |
-| Local infra| Docker Compose                |
+| Concern        | Choice                                  |
+| -------------- | --------------------------------------- |
+| Runtime        | Node.js 22+ + `tsx` (ESM)               |
+| Language       | TypeScript (strict)                     |
+| API            | Express 5                               |
+| Database       | PostgreSQL 18                           |
+| Queue          | BullMQ + Redis                          |
+| Variant text   | Any OpenAI-compatible LLM (AI optional) |
+| Local infra    | Docker Compose                          |
+| Lint / format  | Biome                                   |
 
 ---
 
-## Getting started
+## Quick start
 
 ### Prerequisites
 
 - Node.js 22+
 - Docker and Docker Compose
+- An OpenAI-compatible LLM API key (free options exist, e.g. Groq's free tier)
+- A Telegram bot token and target chat id for the real adapter (optional to boot, but required by config — see below)
 
-### 1. Install dependencies
-
-```bash
-npm install
-```
-
-### 2. Configure the environment
-
-```bash
-cp .env.example .env
-```
-
-Set `DATABASE_URL` to match the Compose database:
-
-```dotenv
-DATABASE_URL=postgres://postgres:dev@localhost:5432/social-studio
-PORT=3000
-```
-
-### 3. Start PostgreSQL
+### 1. Start PostgreSQL and Redis
 
 ```bash
 docker compose up -d
 ```
 
-### 4. Create the schema and seed the platforms
+### 2. Install dependencies
+
+```bash
+npm install
+```
+
+### 3. Configure the environment
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env`. The values below match the Compose services; replace the LLM and Telegram placeholders with your own.
+
+```dotenv
+PORT=3000
+
+DATABASE_URL=postgres://postgres:dev@localhost:5432/social-studio
+
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=dev
+
+LLM_API_BASE_URL=https://api.groq.com/openai/v1
+LLM_API_KEY=your_key_here
+LLM_MODEL=llama-3.3-70b-versatile
+
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+TELEGRAM_CHAT_ID=your_chat_id_here
+```
+
+> Configuration is strict: the app validates all of the above on boot and exits with a clear error if any are missing. LLM and Telegram values are required even if you only want to exercise the non-AI endpoints.
+
+### 4. Create the schema and seed data
 
 ```bash
 npm run db:migrate
 npm run db:seed
 ```
 
-`db:migrate` applies `src/database/schema.sql`. `db:seed` inserts the three platform constraint profiles from `src/database/seed.sql`.
+`db:migrate` applies `src/database/schema.sql`. `db:seed` inserts the three platform constraint profiles and one sample post. Both are safe to re-run.
 
-> Both scripts are non-idempotent: `db:migrate` fails if the tables already exist, and `db:seed` fails on the `platforms.code` unique constraint if run twice. To start over, run `docker compose down -v` and repeat from step 3.
+> `db:migrate` uses `CREATE TABLE IF NOT EXISTS`. That makes re-runs safe, but it will **not** add new columns to an existing database. If you change the schema, recreate the volume: `docker compose down -v` and repeat from step 1.
 
-### 5. Run the API
+### 5. Run the API and the worker
+
+In two terminals:
 
 ```bash
+# terminal 1 — API
 npm run dev
+
+# terminal 2 — generation worker
+npm run start:worker
 ```
 
-Verify it:
+Verify the API:
 
 ```bash
 curl http://localhost:3000/health
 # {"status":"ok"}
 ```
 
+### 6. Try the flow
+
+The seed inserts a sample post with a fixed id.
+
+```bash
+POST_ID=00000000-0000-0000-0000-000000000001
+
+# enqueue generation for the seeded post (returns a job)
+curl -s -X POST "http://localhost:3000/api/posts/$POST_ID/generate"
+
+# list the generated variants
+curl -s "http://localhost:3000/api/posts/$POST_ID/variants"
+```
+
+Or create your own post:
+
+```bash
+curl -s -X POST http://localhost:3000/api/posts \
+  -H 'Content-Type: application/json' \
+  -d '{"sourceType":"markdown","content":"# Hello\n\nIdempotent publishing matters."}'
+
+curl -s -X POST http://localhost:3000/api/posts \
+  -H 'Content-Type: application/json' \
+  -d '{"sourceType":"url","url":"https://example.com/article"}'
+```
+
+---
+
+## Environment variables
+
+| Variable             | Required | Purpose                                             | Example                                             |
+| -------------------- | -------- | --------------------------------------------------- | --------------------------------------------------- |
+| `PORT`               | no       | API port (default `3000`)                           | `3000`                                              |
+| `DATABASE_URL`       | yes      | PostgreSQL connection string                        | `postgres://postgres:dev@localhost:5432/social-studio` |
+| `REDIS_HOST`         | yes      | Redis host for BullMQ                               | `localhost`                                         |
+| `REDIS_PORT`         | yes      | Redis port                                          | `6379`                                              |
+| `REDIS_PASSWORD`     | yes      | Redis password                                      | `dev`                                               |
+| `LLM_API_BASE_URL`   | yes      | OpenAI-compatible API base URL                      | `https://api.groq.com/openai/v1`                    |
+| `LLM_API_KEY`        | yes      | LLM API key                                         | `gsk_...`                                           |
+| `LLM_MODEL`          | yes      | Model used for generation                           | `llama-3.3-70b-versatile`                           |
+| `TELEGRAM_BOT_TOKEN` | yes      | Token for the real Telegram adapter                 | `123456:ABC...`                                     |
+| `TELEGRAM_CHAT_ID`   | yes      | Target chat/channel the bot posts to                | `@your_channel`                                     |
+
+Secrets live in `.env` only. `.env` is git-ignored; `.env.example` ships placeholders.
+
 ---
 
 ## Scripts
 
-| Script               | Purpose                                    |
-| -------------------- | ------------------------------------------ |
-| `npm run dev`        | Start the API with file watching           |
-| `npm start`          | Start the API once                         |
-| `npm run db:migrate` | Apply `src/database/schema.sql`            |
-| `npm run db:seed`    | Insert the platform constraint profiles    |
-
----
-
-## Project layout
-
-```text
-src/
-├── index.ts              # Server entry point
-├── app.ts                # Express app and routes
-├── config/
-│   └── env.ts            # Environment configuration
-├── database/
-│   ├── db.ts             # PostgreSQL connection pool
-│   ├── schema.sql        # Table definitions, constraints, indexes
-│   └── seed.sql          # Platform constraint profiles
-└── scripts/
-    ├── migrate.ts        # Runs schema.sql
-    └── seed.ts           # Runs seed.sql
-
-docs/
-└── DESIGN.md             # Design document
-```
+| Script               | Purpose                                              |
+| -------------------- | ---------------------------------------------------- |
+| `npm run dev`        | Start the API with file watching                     |
+| `npm start`          | Start the API once                                   |
+| `npm run start:worker` | Start the BullMQ generation worker                 |
+| `npm run build`      | Type-check and emit to `dist/` (`tsconfig.build.json`) |
+| `npm run typecheck`  | `tsc --noEmit` over `src` and `test`                 |
+| `npm run lint`       | Biome check                                          |
+| `npm run lint:fix`   | Biome check with fixes                               |
+| `npm run format`     | Biome format (write)                                 |
+| `npm test`           | Node test runner (no tests yet)                      |
+| `npm run db:migrate` | Apply `src/database/schema.sql`                      |
+| `npm run db:seed`    | Insert platform profiles and a sample post           |
 
 ---
 
@@ -139,13 +247,13 @@ docs/
 
 Platform rules are **configuration, not code**. They live as rows in the `platforms` table, so adding a platform or changing a limit requires no change to the validation architecture.
 
-| Platform | Max length | Tone                           | Max hashtags | Adapter                 |
-| -------- | ---------- | ------------------------------ | ------------ | ----------------------- |
-| Telegram | 4096       | Informative and conversational | 5            | `TelegramPublisher`     |
-| X        | 280        | Concise and engaging           | 3            | `MockXPublisher`        |
-| LinkedIn | 3000       | Professional and informative   | 5            | `MockLinkedInPublisher` |
+| Platform | Code            | Max length | Tone                           | Max hashtags | Adapter                 |
+| -------- | --------------- | ---------- | ------------------------------ | ------------ | ----------------------- |
+| Telegram | `telegram`      | 4096       | Informative and conversational | 5            | `TelegramPublisher`     |
+| X        | `mock_x`        | 280        | Concise and engaging           | 3            | `MockXPublisher`        |
+| LinkedIn | `mock_linkedin` | 3000       | Professional and informative   | 5            | `MockLinkedInPublisher` |
 
-A variant that violates its profile is rejected before it can enter the review workflow. Edits are re-validated before they are persisted.
+A variant that violates its profile is rejected before it can enter the review workflow. Tone is currently requested from the model in the prompt; deterministic tone rules are planned.
 
 ---
 
@@ -162,6 +270,7 @@ platforms 1 ────┘
 - **`variants`** — one platform-specific version of a post. Unique on `(post_id, platform_id)`.
 - **`schedules`** — a publishing slot for an approved variant, with a unique `idempotency_key`.
 - **`publish_attempts`** — every attempt against a schedule, unique on `(schedule_id, attempt_number)`.
+- **`generation_jobs`** — tracks asynchronous variant generation.
 
 ### Variant lifecycle
 
@@ -188,13 +297,15 @@ The application depends on exactly one publishing abstraction and contains no pl
 
 ```ts
 interface SocialPublisher {
-  publish(input: PublishInput): Promise<PublishResult>;
+  publish(input: PublisherInput): Promise<PublisherResult>;
 }
 ```
 
-Telegram is the one real publishing target, included to prove the adapter architecture end to end. X and LinkedIn are mock adapters — they record what *would* have been published and return a preview, which keeps the project free of real X and LinkedIn account requirements. Swapping a mock for a real adapter must not touch business logic.
+Implementations live in `src/publishing/adapters/` and are resolved by an adapter registry. Telegram is the one real publishing target; X and LinkedIn are mock adapters that record what *would* have been published. Swapping a mock for a real adapter must not touch business logic.
 
-### Idempotency
+> The adapters and registry exist today, but no code path invokes them yet — the publishing worker that calls `publish()` is part of the unfinished scheduling core.
+
+### Idempotency (design)
 
 A logical publish is identified by **variant + scheduled slot**, represented as a unique idempotency key on `schedules`. The guarantee being built:
 
@@ -204,101 +315,124 @@ publish → worker failure → worker restart
         → zero duplicate posts
 ```
 
-The database enforces uniqueness of the logical schedule; the worker coordinates publish and publish-history state.
+The database enforces uniqueness of the logical schedule; the worker will coordinate publish and publish-history state. This is not yet implemented at runtime.
 
 ---
 
 ## API surface
 
-These routes are specified in the design document. Only `GET /health` exists so far.
+Field names below reflect the implementation. Where the design document uses a different name or verb, the divergence is noted.
+
+### Health
+
+| Method | Route     | Purpose      |
+| ------ | --------- | ------------ |
+| `GET`  | `/health` | Liveness     |
 
 ### Posts
 
-| Method | Route                      | Purpose                          |
-| ------ | -------------------------- | -------------------------------- |
-| `POST` | `/api/posts`               | Create a post (URL or Markdown)  |
-| `GET`  | `/api/posts/:id`           | Get a post                       |
-| `POST` | `/api/posts/:id/generate`  | Generate platform variants       |
-| `GET`  | `/api/posts/:id/variants`  | List a post's variants           |
+| Method | Route                     | Status | Purpose                          |
+| ------ | ------------------------- | ------ | -------------------------------- |
+| `POST` | `/api/posts`              | Done   | Create a post (URL or Markdown)  |
+| `GET`  | `/api/posts/:id`          | Done   | Get a post                       |
+| `POST` | `/api/posts/:id/generate` | Done   | Enqueue variant generation       |
+| `GET`  | `/api/posts/:id/variants` | Done   | List a post's variants           |
+| `GET`  | `/api/generation/:id`     | Done   | Get a generation job             |
 
-Create a post with either shape:
+Create a post with either shape. The URL field is `url` (the design document calls it `sourceUrl`; the code does not yet accept `sourceUrl`):
 
 ```json
 { "sourceType": "markdown", "content": "..." }
 ```
 
 ```json
-{ "sourceType": "url", "sourceUrl": "https://example.com/article" }
+{ "sourceType": "url", "url": "https://example.com/article" }
 ```
 
 ### Variant review
 
-| Method | Route                         | Purpose                              |
-| ------ | ----------------------------- | ------------------------------------ |
-| `GET`  | `/api/variants/:id`           | Get a variant                        |
-| `PUT`  | `/api/variants/:id`           | Edit content (re-validated)          |
-| `POST` | `/api/variants/:id/approve`   | Approve                              |
-| `POST` | `/api/variants/:id/reject`    | Reject                               |
+| Method  | Route                        | Status | Purpose                                |
+| ------- | ---------------------------- | ------ | -------------------------------------- |
+| `GET`   | `/api/variants/:id`          | Done   | Get a variant                          |
+| `PATCH` | `/api/variants/:id`          | Done   | Edit content (not re-validated yet)    |
+| `POST`  | `/api/variants/:id/approve`  | Done   | Approve                                |
+| `POST`  | `/api/variants/:id/reject`   | Done   | Reject                                 |
+
+```json
+{ "content": "edited variant text" }
+```
+
+```json
+{ "reason": "too promotional" }
+```
 
 ### Scheduling and history
 
-| Method | Route                            | Purpose                        |
-| ------ | -------------------------------- | ------------------------------ |
-| `POST` | `/api/variants/:id/schedule`     | Schedule an approved variant   |
-| `GET`  | `/api/schedules/:id`             | Get a schedule                 |
-| `GET`  | `/api/schedules/:id/attempts`    | Full publish history           |
+| Method | Route                         | Status         | Purpose                        |
+| ------ | ----------------------------- | -------------- | ------------------------------ |
+| `POST` | `/api/variants/:id/schedule`  | **Stub**       | Schedule an approved variant   |
+| `GET`  | `/api/schedules/:id`          | Not implemented | Get a schedule                 |
+| `GET`  | `/api/schedules/:id/attempts` | Not implemented | Full publish history           |
+
+The schedule endpoint is not functional yet. It returns `409` for a variant that is not `APPROVED`, and for an approved variant it currently sends no response. The intended request body is:
 
 ```json
 { "scheduledAt": "2026-09-10T18:00:00Z" }
 ```
 
-Scheduling a variant that is not `APPROVED` returns `4xx` and creates no schedule.
+Scheduling a variant that is not `APPROVED` must return `4xx` and create no schedule.
 
 ---
 
-## Application flow
+## Project layout
 
 ```text
-POST /api/posts
-      ▼
-Store source post
-      ▼
-POST /api/posts/:id/generate
-      ▼
-Generate platform variants
-      ▼
-Validate against platform profile ──── invalid → validation error
-      ▼
-Store valid variants as DRAFT
-      ▼
-Human review ──── reject
-      └── approve
-            ▼
-      Create schedule
-            ▼
-      BullMQ job → Worker → SocialPublisher
-                              ├── Telegram
-                              ├── Mock X
-                              └── Mock LinkedIn
-                                    ▼
-                            Publish history
+src/
+├── index.ts                 # Server entry point
+├── app.ts                   # Express app and route wiring
+├── config/
+│   ├── env.ts               # Validated environment configuration
+│   └── container.ts         # Manual dependency injection
+├── database/
+│   ├── db.ts                # PostgreSQL connection pool
+│   ├── schema.sql           # Tables, constraints, indexes
+│   └── seed.sql             # Platform profiles + sample post
+├── ingestion/               # URL fetch, Readability extraction, Markdown conversion
+├── ai/                      # AI provider, prompt, variant validator
+├── publishing/
+│   ├── social-publisher.ts  # The one publisher interface
+│   ├── adapter-registery.ts # Adapter registry
+│   └── adapters/            # Telegram + mock X + mock LinkedIn
+├── modules/
+│   ├── posts/               # route / service / repository / types / schema
+│   ├── platforms/           # repository / types
+│   ├── variants/            # route / service / repository / types
+│   └── generation/          # route / service / repository / queue / types
+├── workers/
+│   └── generation.worker.ts # BullMQ generation worker
+├── middlewares/             # error handler
+├── shared/                  # AppError
+└── scripts/                 # migrate, seed
+
+docs/
+└── DESIGN.md                # Design document
 ```
 
 ---
 
-## Target infrastructure
+## Known limitations
 
-Currently `docker-compose.yaml` provides PostgreSQL only. The full topology adds the API, worker, and Redis:
-
-```text
-docker-compose
-├── api        # Express + TypeScript
-├── worker     # BullMQ worker
-├── postgres   # PostgreSQL
-└── redis      # BullMQ queue backend
-```
-
-The API and worker share PostgreSQL and Redis with separate responsibilities: the API owns posts, variants, review, and scheduling; the worker owns due publishing jobs.
+- **Scheduling and publishing are not implemented.** There is no publishing worker, no durable scheduler, and no runtime idempotency.
+- **The schedule endpoint is a stub** — see above.
+- **No publish history.** `publish_attempts` is written nowhere and exposed by no endpoint.
+- **Mock adapters do not persist previews**; they log to the console. The adapters are not invoked by any request path yet.
+- **Edited variants are not re-validated** against their platform profile.
+- **Tone is prompt-only**, not machine-enforced.
+- **Configuration is strict**: the API will not boot without LLM and Telegram values, even for endpoints that do not use them.
+- **API and worker are not containerized.** `docker compose` provides PostgreSQL and Redis only.
+- **No tests** and no `EVIDENCE.md` / `BUILDLOG.md` yet.
+- **Design/code divergences**: the design document specifies `sourceUrl` and `PUT`; the code uses `url` and `PATCH`. These should be reconciled.
+- **Schema changes require a fresh volume**, because the migration relies on `CREATE TABLE IF NOT EXISTS` and does not add columns to existing tables.
 
 ---
 

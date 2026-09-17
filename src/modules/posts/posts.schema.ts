@@ -6,8 +6,8 @@ export const postSchema = z.object({
     sourceUrl: z.string().nullable(),
     content: z.string(),
     createdAt: z.date(),
-    updatedAt: z.date()
-})
+    updatedAt: z.date(),
+});
 
 export const createPostSchema = z.discriminatedUnion("sourceType", [
     z.object({
@@ -21,6 +21,5 @@ export const createPostSchema = z.discriminatedUnion("sourceType", [
     }),
 ]);
 
-
-export type CreatePostInput = z.infer<typeof createPostSchema>
-export type Post = z.infer<typeof postSchema>
+export type CreatePostInput = z.infer<typeof createPostSchema>;
+export type Post = z.infer<typeof postSchema>;

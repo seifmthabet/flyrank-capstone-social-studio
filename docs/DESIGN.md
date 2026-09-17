@@ -253,7 +253,7 @@ started_at
 completed_at
 external_post_id
 response               -- jsonb; includes mock preview payloads
-error_message
+error
 ```
 
 Example:
