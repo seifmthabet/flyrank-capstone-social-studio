@@ -1,14 +1,14 @@
 import { Worker } from 'bullmq'
 import { Redis } from "ioredis"
-import {env} from "../../config/env.js";
-import {GenerationRepository} from "./generation.repository.js";
-import {GenerationService} from "./generation.service.js";
-import {PostRepository} from "../posts/posts.repository.js";
-import {PlatformsRepository} from "../platforms/platforms.repository.js";
-import {VariantsRepository} from "../variants/variants.repository.js";
-import {GroqAiProvider} from "../../ai/groq-provider.js";
-import type {GenerationJobData} from "./generation.types.js";
-import {createGenerationContainer} from "../../config/container.js";
+import {env} from "../config/env.js";
+import {GenerationRepository} from "../modules/generation/generation.repository.js";
+import {GenerationService} from "../modules/generation/generation.service.js";
+import {PostRepository} from "../modules/posts/posts.repository.js";
+import {PlatformsRepository} from "../modules/platforms/platforms.repository.js";
+import {VariantsRepository} from "../modules/variants/variants.repository.js";
+import {GroqAiProvider} from "../ai/groq-provider.js";
+import type {GenerationJobData} from "../modules/generation/generation.types.js";
+import {createGenerationContainer} from "../config/container.js";
 
 const connection = {
     host: env.redis.host,
