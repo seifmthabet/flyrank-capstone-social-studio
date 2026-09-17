@@ -7,7 +7,7 @@ export const errorHandler = (err: unknown, _req: Request, res: Response, _next: 
             error: {
                 code: err.code,
                 message: err.message,
-                ...(err.details === "undefined" ? {} : {details: err.details})
+                ...(err.details !== undefined ? {details: err.details} : {})
             }
         })
         return;
