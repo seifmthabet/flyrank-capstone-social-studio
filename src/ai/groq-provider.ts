@@ -1,10 +1,13 @@
-import {OpenAI} from "openai";
-import {env} from "../config/env.js";
-import type {Post} from "../modules/posts/posts.schema.js";
-import {generatePrompt} from "./prompts.js";
-import {z} from "zod";
-import {AppError} from "../shared/error.js";
-import type {AiProvider, GenerateVariantInput, GenerateVariantResult} from "./ai-provider.js";
+import { OpenAI } from "openai";
+import { z } from "zod";
+import { env } from "../config/env.js";
+import { AppError } from "../shared/error.js";
+import type {
+    AiProvider,
+    GenerateVariantInput,
+    GenerateVariantResult,
+} from "./ai-provider.js";
+import { generatePrompt } from "./prompts.js";
 
 export interface Platform {
     name: string;
@@ -15,7 +18,7 @@ export interface Platform {
 
 const aiResponseSchema = z.object({
     content: z.string(),
-})
+});
 
 export class GroqAiProvider implements AiProvider {
     private client: OpenAI | undefined;
@@ -24,7 +27,10 @@ export class GroqAiProvider implements AiProvider {
 
     private getClient(): OpenAI {
         if (!env.ai.api_key) {
-            throw AppError.badRequest("GROQ_API_KEY is not configured", "AI_NOT_CONFIGURED");
+            throw AppError.badRequest(
+                "GROQ_API_KEY is not configured",
+                "AI_NOT_CONFIGURED",
+            );
         }
 
         this.client ??= new OpenAI({
@@ -33,7 +39,6 @@ export class GroqAiProvider implements AiProvider {
         });
 
         return this.client;
-
     }
 
     private stripCodeFences(text: string): string {
@@ -41,7 +46,9 @@ export class GroqAiProvider implements AiProvider {
         const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
         return fenced?.[1]?.trim() ?? trimmed;
     }
-    async  generateVariant(input: GenerateVariantInput): Promise<GenerateVariantResult> {
+    async generateVariant(
+        input: GenerateVariantInput,
+    ): Promise<GenerateVariantResult> {
         const { system, user } = generatePrompt(input);
 
         const completion = await this.getClient().chat.completions.create({
@@ -52,18 +59,24 @@ export class GroqAiProvider implements AiProvider {
             ],
             temperature: 0.7,
             response_format: { type: "json_object" },
-        })
+        });
 
         const content = completion.choices[0]?.message?.content;
         if (!content) {
-            throw AppError.badRequest("AI did not return any content", "AI_NO_CONTENT");
+            throw AppError.badRequest(
+                "AI did not return any content",
+                "AI_NO_CONTENT",
+            );
         }
 
         let raw: unknown;
         try {
             raw = JSON.parse(this.stripCodeFences(content));
-        } catch (error) {
-            throw AppError.badRequest("AI provider returned output that is not valid JSON", "AI_INVALID_RESPONSE");
+        } catch (_error) {
+            throw AppError.badRequest(
+                "AI provider returned output that is not valid JSON",
+                "AI_INVALID_RESPONSE",
+            );
         }
 
         const parsed = aiResponseSchema.safeParse(raw);
@@ -72,14 +85,13 @@ export class GroqAiProvider implements AiProvider {
                 "AI provider returned an unparseable variant",
                 "AI_INVALID_RESPONSE",
                 parsed.error.flatten(),
-                );
+            );
         }
 
         return {
             content: parsed.data.content,
             provider: "groq",
             model: this.model,
-        }
-
+        };
     }
 }

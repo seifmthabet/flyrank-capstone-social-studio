@@ -1,12 +1,16 @@
-import type {PublisherInput, PublisherResult, SocialPublisher} from "../social-publisher.js";
-import {env} from "../../config/env.js";
+import { env } from "../../config/env.js";
+import type {
+    PublisherInput,
+    PublisherResult,
+    SocialPublisher,
+} from "../social-publisher.js";
 
 export class TelegramPublisher implements SocialPublisher {
     async publish(input: PublisherInput): Promise<PublisherResult> {
         if (!env.telegram.bot_token || !env.telegram.chat_id) {
             return {
                 success: false,
-                error: "Telegram bot token or chat ID is missing"
+                error: "Telegram bot token or chat ID is missing",
             };
         }
 
@@ -22,9 +26,9 @@ export class TelegramPublisher implements SocialPublisher {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(payload),
-        })
+        });
 
-        const data = (await response.json()) as Record<string, unknown>
+        const data = (await response.json()) as Record<string, unknown>;
 
         if (!response.ok) {
             return {
@@ -36,8 +40,10 @@ export class TelegramPublisher implements SocialPublisher {
 
         return {
             success: true,
-            externalPostId: String((data.result as {message_id?: number})?.message_id),
+            externalPostId: String(
+                (data.result as { message_id?: number })?.message_id,
+            ),
             response: data,
-        }
+        };
     }
 }

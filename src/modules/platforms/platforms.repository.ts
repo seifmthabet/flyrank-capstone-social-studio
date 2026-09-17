@@ -1,5 +1,5 @@
-import type {IPlatformRepository, Platform} from "./platforms.types.js";
 import pool from "../../database/db.js";
+import type { IPlatformRepository, Platform } from "./platforms.types.js";
 
 interface PlatformRow {
     id: string;

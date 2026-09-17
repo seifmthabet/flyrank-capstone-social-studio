@@ -1,4 +1,3 @@
-
 export interface PublisherInput {
     content: string;
     platformCode: string;

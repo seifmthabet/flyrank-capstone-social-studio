@@ -1,6 +1,5 @@
 import TurndownService from "turndown";
 
-
 export class MarkdownConverter {
     private readonly turndown: TurndownService;
 
@@ -9,7 +8,7 @@ export class MarkdownConverter {
             headingStyle: "atx",
             bulletListMarker: "-",
             codeBlockStyle: "fenced",
-        })
+        });
     }
 
     convert(html: string): string {

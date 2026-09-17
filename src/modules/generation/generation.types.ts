@@ -1,4 +1,4 @@
-import type {Variant} from "../variants/variants.types.js";
+import type { Variant } from "../variants/variants.types.js";
 
 export type GenerationStatus = "queued" | "processing" | "completed" | "failed";
 

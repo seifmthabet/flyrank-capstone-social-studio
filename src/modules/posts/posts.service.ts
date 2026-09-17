@@ -1,15 +1,21 @@
-import type {IngestMarkdownInput, IngestUrlInput, IPostRepository, IPostService, Post} from "./posts.types.js";
-import type {UrlFetcher} from "../../ingestion/url-fetcher.js";
-import type {ArticleExtractor} from "../../ingestion/article-extractor.js";
-import type {MarkdownConverter} from "../../ingestion/markdown-converter.js";
-import {AppError} from "../../shared/error.js";
+import type { ArticleExtractor } from "../../ingestion/article-extractor.js";
+import type { MarkdownConverter } from "../../ingestion/markdown-converter.js";
+import type { UrlFetcher } from "../../ingestion/url-fetcher.js";
+import { AppError } from "../../shared/error.js";
+import type {
+    IngestMarkdownInput,
+    IngestUrlInput,
+    IPostRepository,
+    IPostService,
+    Post,
+} from "./posts.types.js";
 
-export class PostService implements IPostService{
+export class PostService implements IPostService {
     constructor(
         private readonly urlfetcher: UrlFetcher,
         private readonly articleExtractor: ArticleExtractor,
         private readonly markdownConverter: MarkdownConverter,
-        private readonly postRepository: IPostRepository
+        private readonly postRepository: IPostRepository,
     ) {}
 
     async ingestMarkdown(input: IngestMarkdownInput): Promise<Post> {
@@ -21,8 +27,8 @@ export class PostService implements IPostService{
 
         return await this.postRepository.create({
             sourceType: "markdown",
-            content
-        })
+            content,
+        });
     }
 
     async ingestUrl(input: IngestUrlInput): Promise<Post> {
@@ -43,12 +49,12 @@ export class PostService implements IPostService{
         return await this.postRepository.create({
             sourceType: "url",
             url: url,
-            content
-        })
+            content,
+        });
     }
 
     async getPostById(id: string): Promise<Post | null> {
-        const post = await this.postRepository.findById(id)
+        const post = await this.postRepository.findById(id);
 
         if (!post) {
             throw AppError.notFound("Post not found");

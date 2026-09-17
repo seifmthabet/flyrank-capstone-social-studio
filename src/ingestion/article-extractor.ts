@@ -1,6 +1,6 @@
-import {JSDOM} from "jsdom";
-import {Readability} from "@mozilla/readability";
-import {AppError} from "../shared/error.js";
+import { Readability } from "@mozilla/readability";
+import { JSDOM } from "jsdom";
+import { AppError } from "../shared/error.js";
 
 interface ExtractArticle {
     title: string | null;
@@ -11,10 +11,9 @@ interface ExtractArticle {
 }
 
 export class ArticleExtractor {
-    constructor() {}
-    extract(html: string, url: string) : ExtractArticle {
+    extract(html: string, url: string): ExtractArticle {
         const dom = new JSDOM(html, {
-            url
+            url,
         });
 
         const reader = new Readability(dom.window.document);
@@ -30,7 +29,6 @@ export class ArticleExtractor {
             excerpt: article.excerpt ?? null,
             byline: article.byline ?? null,
             siteName: article.siteName ?? null,
-        }
-
+        };
     }
 }
