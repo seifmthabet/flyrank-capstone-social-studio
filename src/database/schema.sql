@@ -1,104 +1,115 @@
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
-create table posts (
-    id uuid primary key default gen_random_uuid(),
-    source_type varchar(20) not null check (source_type in ('url', 'markdown')),
-    source_url text,
-    content text not null,
-    created_at timestamp not null default now(),
-    updated_at timestamp not null default now(),
-
-    constraint posts_url_required_for_url check (
-        source_type <> 'url' or source_url is not null
-                                                ),
-    constraint posts_no_url_for_markdown check (
-        source_type <> 'markdown' or source_url is null
-                                                )
+CREATE TABLE IF NOT EXISTS posts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+  source_type VARCHAR(20) NOT NULL CHECK (source_type IN ('url', 'markdown')),
+  source_url TEXT,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT posts_url_required_for_url CHECK (
+    source_type <> 'url'
+    OR source_url IS NOT NULL
+  ),
+  CONSTRAINT posts_no_url_for_markdown CHECK (
+    source_type <> 'markdown'
+    OR source_url IS NULL
+  )
 );
 
-create index idx_posts_created_at on posts (created_at desc);
+CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts (created_at DESC);
 
-create table platforms (
-    id uuid primary key default gen_random_uuid(),
-    code varchar(50) not null unique,
-    name varchar(100) not null,
-    max_length integer not null check (max_length > 0),
-    tone text not null,
-    max_hashtags integer not null check (max_hashtags > 0),
-    adapter varchar(100) not null,
-    enabled boolean not null default true,
-    created_at timestamp not null default now(),
-    updated_at timestamp not null default now()
+CREATE TABLE IF NOT EXISTS platforms (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+  code VARCHAR(50) NOT NULL UNIQUE,
+  name VARCHAR(100) NOT NULL,
+  max_length INTEGER NOT NULL CHECK (max_length > 0),
+  tone TEXT NOT NULL,
+  max_hashtags INTEGER NOT NULL CHECK (max_hashtags >= 0),
+  adapter VARCHAR(100) NOT NULL,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-create index idx_platforms_enabled on platforms (enabled);
+CREATE INDEX IF NOT EXISTS idx_platforms_enabled ON platforms (enabled);
 
-create table variants (
-    id uuid primary key default gen_random_uuid(),
-    post_id uuid not null references posts(id) on delete cascade,
-    platform_id uuid not null references platforms(id) on delete restrict,
-    content text not null,
-    status varchar(20) not null default 'draft' check (status in ('draft', 'approved', 'rejected', 'published')),
-    rejection_reason text,
-    generation_provider VARCHAR(100),
-    generation_model VARCHAR(100),
-    created_at timestamp not null default now(),
-    updated_at timestamp not null default now(),
-
-    constraint variants_unique_for_post_platform unique (post_id, platform_id)
+CREATE TABLE IF NOT EXISTS variants (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+  post_id uuid NOT NULL REFERENCES posts (id) ON DELETE CASCADE,
+  platform_id uuid NOT NULL REFERENCES platforms (id) ON DELETE RESTRICT,
+  content TEXT NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (
+    status IN ('draft', 'approved', 'rejected', 'published')
+  ),
+  rejection_reason TEXT,
+  generation_provider VARCHAR(100),
+  generation_model VARCHAR(100),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT variants_unique_for_post_platform UNIQUE (post_id, platform_id)
 );
 
-create index idx_variants_status on variants (status);
-create index idx_variants_post_id on variants (post_id);
-create index idx_variants_platform_id on variants (platform_id);
+CREATE INDEX IF NOT EXISTS idx_variants_status ON variants (status);
 
-create table schedules (
-    id uuid primary key default gen_random_uuid(),
-    variant_id uuid not null references variants(id) on delete restrict,
-    scheduled_at timestamp not null,
-    status varchar(20) not null default 'pending' check (status in ('pending', 'processing','success', 'failed')),
-    idempotency_key varchar(255) not null unique,
-    created_at timestamp not null default now(),
-    updated_at timestamp not null default now(),
-    completed_at timestamp
+CREATE INDEX IF NOT EXISTS idx_variants_post_id ON variants (post_id);
+
+CREATE INDEX IF NOT EXISTS idx_variants_platform_id ON variants (platform_id);
+
+CREATE TABLE IF NOT EXISTS schedules (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+  variant_id uuid NOT NULL REFERENCES variants (id) ON DELETE RESTRICT,
+  scheduled_at TIMESTAMPTZ NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (
+    status IN ('pending', 'processing', 'success', 'failed')
+  ),
+  idempotency_key VARCHAR(255) NOT NULL UNIQUE,
+  attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+  last_error TEXT,
+  locked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at TIMESTAMPTZ
 );
 
-create index idx_schedules_variant_id on schedules (variant_id);
-create index idx_schedules_pending_time on schedules (status, scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_schedules_variant_id ON schedules (variant_id);
 
-create table publish_attempts (
-    id uuid primary key default gen_random_uuid(),
-    schedule_id uuid not null references schedules(id) on delete cascade,
-    attempt_number integer not null check (attempt_number > 0),
-    idempotency_key VARCHAR(255) NOT NULL,
-    status varchar(20) not null check (
-        status in ('started', 'success', 'failed')
-                                      ),
-    started_at timestamp not null default now(),
-    completed_at timestamp,
-    external_post text,
-    response jsonb,
-    error_message text,
+CREATE INDEX IF NOT EXISTS idx_schedules_pending_time ON schedules (status, scheduled_at);
 
-    constraint publish_attempt_number_unique unique (schedule_id, attempt_number)
+CREATE TABLE IF NOT EXISTS publish_attempts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+  schedule_id uuid NOT NULL REFERENCES schedules (id) ON DELETE CASCADE,
+  attempt_number INTEGER NOT NULL CHECK (attempt_number > 0),
+  idempotency_key VARCHAR(255) NOT NULL,
+  status VARCHAR(20) NOT NULL CHECK (status IN ('started', 'success', 'failed')),
+  started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at TIMESTAMPTZ,
+  external_post_id TEXT,
+  response JSONB,
+  error TEXT,
+  CONSTRAINT publish_attempt_number_unique UNIQUE (schedule_id, attempt_number)
 );
 
-create index idx_publish_attempts_schedule_id on publish_attempts (schedule_id);
-create index idx_publish_attempts_status on publish_attempts (status);
-create index idx_publish_attempts_started_at on publish_attempts (started_at desc);
+CREATE INDEX IF NOT EXISTS idx_publish_attempts_schedule_id ON publish_attempts (schedule_id);
 
-create table generation_jobs (
-    id uuid primary key default gen_random_uuid(),
-    post_id uuid not null references posts(id) on delete cascade,
-    status varchar(20) not null default 'queued' check (status in ('queued', 'processing', 'completed', 'failed')),
-    attempts integer not null default 0 check (attempts >= 0),
-    error text,
-    started_at timestamp,
-    completed_at timestamp,
-    created_at timestamp not null default now(),
-    updated_at timestamp not null default now()
+CREATE INDEX IF NOT EXISTS idx_publish_attempts_status ON publish_attempts (status);
+
+CREATE INDEX IF NOT EXISTS idx_publish_attempts_started_at ON publish_attempts (started_at DESC);
+
+CREATE TABLE IF NOT EXISTS generation_jobs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+  post_id uuid NOT NULL REFERENCES posts (id) ON DELETE CASCADE,
+  status VARCHAR(20) NOT NULL DEFAULT 'queued' CHECK (
+    status IN ('queued', 'processing', 'completed', 'failed')
+  ),
+  attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+  error TEXT,
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-create index idx_generation_jobs_post_id on generation_jobs (post_id);
-create index idx_generation_jobs_status on generation_jobs (status);
-create index idx_generation_jobs_created_at on generation_jobs (created_at desc);
+CREATE INDEX IF NOT EXISTS idx_generation_jobs_post_id ON generation_jobs (post_id);
+
+CREATE INDEX IF NOT EXISTS idx_generation_jobs_status ON generation_jobs (status);
+
+CREATE INDEX IF NOT EXISTS idx_generation_jobs_created_at ON generation_jobs (created_at DESC);
