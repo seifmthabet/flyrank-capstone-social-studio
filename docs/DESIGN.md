@@ -1,10 +1,14 @@
 # Social Media Studio — Design Document
 
+> Canonical design for the FlyRank capstone. This document describes the **intended final system**, not merely what exists today. The current gaps between this design and the code are tracked in [`TASKS.md`](./TASKS.md) and sequenced in [`PLAN.md`](./PLAN.md). An implementation-status table is included at the end so this document stays honest.
+
+---
+
 ## 1. Problem
 
 Social Media Studio transforms one stored blog post into a multi-platform social media campaign.
 
-A user submits a blog post either as a URL or pasted Markdown. The system stores that post as the single source of truth, then generates one platform-specific variant for each configured platform.
+A user submits a blog post either as a URL or as pasted Markdown. The system stores that post as the single source of truth, then generates one platform-specific variant for each configured platform.
 
 Each platform has its own content constraints, including maximum length, tone, and hashtag count. The system validates every generated or edited variant against its platform's constraint profile. Invalid variants are rejected before they can enter the review workflow.
 
@@ -16,102 +20,113 @@ Publishing must be idempotent: retrying the same variant for the same scheduled 
 
 The system is therefore primarily a reliable content publishing workflow rather than a collection of social-media API integrations.
 
+### Hard parts (the graded core)
+
+1. **Idempotency** — a retry after a timeout must not create a second post.
+2. **Constraint profiles** — rules are enforced by code, not by hope.
+3. **Durable scheduling** — a worker that dies mid-batch resumes without duplicates.
+4. **The adapter seam** — the app does not know which platform it publishes to.
+
 ---
 
-## 2. Platform Constraint Profiles
+## 2. Scope and Non-Goals
 
-The system represents platform rules as configuration rather than hardcoding platform-specific conditions throughout the application.
+### In scope
+
+* URL and Markdown ingestion with a stored source of truth.
+* Config-driven platform constraint profiles enforced by a validator.
+* AI-assisted (or template) variant generation per platform.
+* Human review workflow: draft / approved / rejected / published.
+* Publisher adapter layer with one real free target and at least two mocks.
+* Idempotent, durable scheduling and an auditable publish history.
+
+### Explicit non-goals
+
+* Real X publishing
+* Real LinkedIn publishing
+* Instagram publishing
+* Image generation
+* Analytics
+* Engagement tracking
+
+X and LinkedIn are represented by mock adapters. Telegram is the single real free publishing target that proves the adapter architecture end to end.
+
+---
+
+## 3. Platform Constraint Profiles
+
+The system represents platform rules as configuration (rows in `platforms`) rather than hardcoding platform-specific conditions throughout the application.
 
 Each platform has:
 
 * maximum content length
 * expected tone
 * maximum hashtag count
-* publisher adapter
+* publisher adapter code
+* an `enabled` flag
 
-### Telegram
+### Seeded profiles
+
+#### Telegram
 
 | Constraint       | Rule                           |
 | ---------------- | ------------------------------ |
+| code             | `telegram`                     |
 | Maximum length   | 4096 characters                |
 | Tone             | Conversational and informative |
 | Maximum hashtags | 5                              |
 | Adapter          | `TelegramPublisher`            |
 
-### X
+#### X
 
 | Constraint       | Rule                 |
 | ---------------- | -------------------- |
+| code             | `mock_x`             |
 | Maximum length   | 280 characters       |
 | Tone             | Concise and engaging |
 | Maximum hashtags | 3                    |
 | Adapter          | `MockXPublisher`     |
 
-### LinkedIn
+#### LinkedIn
 
 | Constraint       | Rule                         |
 | ---------------- | ---------------------------- |
+| code             | `mock_linkedin`              |
 | Maximum length   | 3000 characters              |
 | Tone             | Professional and informative |
 | Maximum hashtags | 5                            |
 | Adapter          | `MockLinkedInPublisher`      |
 
-The constraint values are application configuration and can be changed without modifying the validation architecture.
+Constraint values are application configuration and can be changed without modifying the validation architecture.
 
-The validator is responsible for enforcing the profile. A variant that violates a constraint must not be persisted as a reviewable variant.
+### Enforcement model
 
----
+A single `VariantValidator` enforces every profile. It is used in three places:
 
-## 3. Publishing Architecture
+1. **After generation** — a generated variant that breaks a rule is never persisted as a reviewable variant.
+2. **Before an edit is persisted** — edited content is re-validated against the owning platform's profile.
+3. **Before scheduling** — an optional final guard so a stored-but-invalid variant cannot slip through.
 
-The application depends on one publishing abstraction:
+Mandatory, machine-checkable rules:
 
-```ts
-interface SocialPublisher {
-  publish(input: PublishInput): Promise<PublishResult>;
-}
-```
+* `content` is non-empty after trimming.
+* `content.length <= max_length`.
+* `countHashtags(content) <= max_hashtags`, where a hashtag is `#` followed by one or more Unicode letters, digits, or underscores.
 
-The application does not directly call Telegram, X, or LinkedIn APIs.
+**Tone** is a soft constraint. It is enforced in two complementary ways:
 
-Implementations:
+* The generation prompt instructs the model to match the configured tone.
+* Deterministic, per-platform *tone rules* may be added as a `tone_rules jsonb` column (e.g. banned phrases, required call-to-action) and evaluated by the validator.
 
-```text
-SocialPublisher
-├── TelegramPublisher
-├── MockXPublisher
-└── MockLinkedInPublisher
-```
+Tone is additionally a human-review responsibility: the reviewer sees the target tone beside the content and can reject a mismatched variant. Any automated tone rule must be configuration, never a hardcoded platform condition in business logic.
 
-### Publish input
-
-```ts
-interface PublishInput {
-  content: string;
-  idempotencyKey: string;
-}
-```
-
-### Publish result
-
-```ts
-interface PublishResult {
-  success: boolean;
-  externalPostId?: string;
-  response?: unknown;
-  error?: string;
-}
-```
-
-The real Telegram adapter sends the content to the configured Telegram target.
-
-The mock adapters do not contact external platforms. They record what would have been published and provide a preview, satisfying the adapter architecture without requiring real X or LinkedIn accounts.
-
-Changing the configured adapter must not require changes to business logic.
+Every validation failure throws an `AppError` with a code that **names the broken rule** (`EMPTY_VARIANT`, `VARIANT_TOO_LONG`, `TOO_MANY_HASHTAGS`, `TONE_RULE_VIOLATED`) so the API response is actionable and PROBE 2 can be evidenced.
 
 ---
 
 ## 4. Data Model
+
+Relational, PostgreSQL. All timestamps are UTC. IDs are UUIDs (`gen_random_uuid()`).
 
 ### `posts`
 
@@ -119,18 +134,14 @@ Stores the original blog post.
 
 ```text
 id
-source_type
-source_url
-content
+source_type        -- 'url' | 'markdown'
+source_url         -- required iff source_type = 'url'
+content            -- normalized Markdown; single source of truth
 created_at
 updated_at
 ```
 
-`source_type` identifies whether the post came from a URL or pasted Markdown.
-
-The stored `content` is the single source of truth for variant generation.
-
----
+`source_type` identifies whether the post came from a URL or pasted Markdown. The stored `content` is the single source of truth for variant generation — no generation path may re-fetch the source URL.
 
 ### `platforms`
 
@@ -138,24 +149,16 @@ Stores the configured publishing platforms and their constraint profiles.
 
 ```text
 id
-code
+code               -- unique, e.g. telegram | mock_x | mock_linkedin
 name
 max_length
 tone
 max_hashtags
-adapter
+adapter            -- adapter code resolved by the registry
+enabled            -- only enabled platforms are generated/scheduled
 created_at
+updated_at
 ```
-
-Example platform records:
-
-```text
-telegram
-mock_x
-mock_linkedin
-```
-
----
 
 ### `variants`
 
@@ -163,10 +166,13 @@ Stores one platform-specific version of a post.
 
 ```text
 id
-post_id
-platform_id
+post_id            -- FK -> posts (cascade delete)
+platform_id        -- FK -> platforms (restrict delete)
 content
-status
+status             -- 'draft' | 'approved' | 'rejected' | 'published'
+rejection_reason
+generation_provider
+generation_model
 created_at
 updated_at
 ```
@@ -174,37 +180,31 @@ updated_at
 Relationships:
 
 ```text
-posts 1 ──── N variants
+posts     1 ──── N variants
 platforms 1 ──── N variants
 ```
 
-For the core implementation, one post has at most one variant per platform.
-
-A database uniqueness constraint is therefore applied to:
+One post has at most one variant per platform, enforced by a unique constraint on:
 
 ```text
 (post_id, platform_id)
 ```
 
----
-
-### Variant statuses
-
-The variant lifecycle is:
+### Variant lifecycle
 
 ```text
 DRAFT
-  │
   ├── APPROVED ────→ PUBLISHED
-  │
   └── REJECTED
 ```
 
-Only `APPROVED` variants can be scheduled.
+Rules:
 
-Content edits must be validated against the platform profile before they are persisted.
-
----
+* Only `APPROVED` variants can be scheduled. Any other status ⇒ `4xx` and no schedule is created.
+* Content edits must be validated against the platform profile before they are persisted.
+* Editing a `PUBLISHED` variant is not allowed.
+* Regeneration is refused while any variant of the post is `APPROVED` or `PUBLISHED`.
+* A successful publish transitions the variant to `PUBLISHED`.
 
 ### `schedules`
 
@@ -214,55 +214,46 @@ Represents a scheduled publishing slot.
 id
 variant_id
 scheduled_at
-status
-idempotency_key
+status             -- 'pending' | 'processing' | 'success' | 'failed'
+idempotency_key    -- unique
+attempt_count
+locked_at          -- lease timestamp for crash recovery
+last_error
 created_at
 updated_at
+completed_at
 ```
 
-A schedule belongs to one variant.
-
-The idempotency key uniquely identifies the logical publishing operation for a variant and slot.
-
-Conceptually:
+A schedule belongs to one variant. The idempotency key uniquely identifies the logical publishing operation for a variant and slot:
 
 ```text
-idempotencyKey =
-  variantId + scheduledAt
+idempotencyKey = sha256(`${variantId}:${scheduledAt.toISOString()}`)
 ```
 
-The database enforces uniqueness on the idempotency key.
+The database enforces uniqueness on `idempotency_key`. Re-posting the same variant to the same slot therefore cannot create a second logical schedule; it returns the existing one.
 
----
-
-### Schedule statuses
+### Schedule lifecycle
 
 ```text
-PENDING
-PROCESSING
-SUCCESS
-FAILED
+PENDING → PROCESSING → SUCCESS
+                     └→ FAILED (retryable; returns to PENDING via recovery)
 ```
-
-The exact retry behavior will be implemented by the worker/queue layer.
-
----
 
 ### `publish_attempts`
 
-Stores the history of every attempt to publish a scheduled variant.
+Stores the history of every attempt to publish a scheduled variant. This is the auditable publish history.
 
 ```text
 id
 schedule_id
-attempt_number
+attempt_number         -- unique per schedule
 idempotency_key
-status
+status                 -- 'started' | 'success' | 'failed'
 started_at
 completed_at
 external_post_id
-response
-error
+response               -- jsonb; includes mock preview payloads
+error_message
 ```
 
 Example:
@@ -279,41 +270,123 @@ SUCCESS
 external_post_id = 12345
 ```
 
-This provides an auditable publishing history.
+### `generation_jobs`
+
+Tracks asynchronous variant generation separate from the BullMQ job.
+
+```text
+id
+post_id
+status                 -- 'queued' | 'processing' | 'completed' | 'failed'
+attempts
+error
+started_at
+completed_at
+created_at
+updated_at
+```
 
 ---
 
-## 5. Idempotency
+## 5. Publishing Architecture
 
-Publishing is identified by:
+The application depends on one publishing abstraction. Business logic knows only this interface; it never imports a platform SDK or builds a platform-specific URL.
 
-```text
-variant + scheduled slot
+```ts
+interface SocialPublisher {
+  publish(input: PublisherInput): Promise<PublisherResult>;
+}
+
+interface PublisherInput {
+  content: string;
+  platformCode: string;
+  variantId: string;
+  scheduleId: string;
+  idempotencyKey: string;
+}
+
+interface PublisherResult {
+  success: boolean;
+  externalPostId?: string;
+  response?: unknown;
+  error?: string;
+}
 ```
 
-and represented by a unique idempotency key.
+> The design intent above is canonical. The current code names the input/result types `PublisherInput` / `PublisherResult` and already includes the extra identifiers; the `PublishInput` / `PublishResult` names in the original brief are equivalent. See `src/publishing/social-publisher.ts`.
 
-The system must guarantee that a repeated scheduling/publishing operation for the same variant and slot cannot create a second logical publish.
-
-The database provides uniqueness constraints for the logical schedule, while the worker coordinates publishing and publish-history state.
-
-The implementation must specifically handle the failure case where a worker fails during publishing and is restarted.
-
-The acceptance test is:
+Implementations:
 
 ```text
-publish
-→ worker failure / retry
-→ worker restart
-→ exactly one successful published result
-→ zero duplicate posts
+SocialPublisher
+├── TelegramPublisher          (real free target)
+├── MockXPublisher             (records what it would post)
+└── MockLinkedInPublisher      (records what it would post)
 ```
 
-Idempotency is a core reliability requirement of the system.
+An **adapter registry** maps a platform's `adapter` code (or `code`) to a factory. Swapping the configured adapter changes configuration only — no business-logic changes. Resolution failure is a clear `404`/`500`-class error, never silent.
+
+### Real adapter — Telegram
+
+Sends `content` to the configured `TELEGRAM_CHAT_ID` via the Bot API `sendMessage` method and maps `result.message_id` to `externalPostId`. Failures return `{ success: false, error }` rather than throwing across the seam.
+
+### Mock adapters
+
+Mock adapters do not contact external platforms. They:
+
+* return a deterministic mock `externalPostId`,
+* return a `response` payload that acts as a preview (`{ platform, simulated: true, preview }`),
+* and that payload is persisted in `publish_attempts.response`, so "what would have been posted" is recorded **in the database** and retrievable from the publish-history endpoint.
 
 ---
 
-## 6. API Surface
+## 6. Idempotency and Durable Scheduling
+
+Publishing is identified by **variant + scheduled slot**, represented by a unique idempotency key.
+
+### Guarantees
+
+* A repeated schedule request for the same variant and slot returns the existing schedule; it does not create a second logical publish.
+* A repeated publish for the same schedule returns the existing success; it does not call the adapter again.
+* Concurrent workers cannot both publish the same schedule.
+
+### Mechanics
+
+1. **Unique schedule key.** `schedules.idempotency_key` is `UNIQUE`; an insert conflict yields the existing row.
+2. **Atomic claim.** A worker claims a due schedule with a conditional update:
+
+   ```sql
+   UPDATE schedules
+   SET status = 'processing', locked_at = now(), updated_at = now()
+   WHERE id = $1 AND status = 'pending'
+   RETURNING *;
+   ```
+
+   Only one worker can win. Zero rows returned means another worker owns it.
+3. **Attempt record first.** Before calling the adapter, insert `publish_attempts` with `status = 'started'` and `attempt_number = COALESCE(max)+1`; the `(schedule_id, attempt_number)` unique constraint prevents duplicate attempt numbering.
+4. **Short-circuit on prior success.** If the schedule already has a `success` attempt, mark the schedule `success` and skip the adapter.
+5. **Finalize atomically.** On adapter success, mark the attempt `success`, the schedule `success`, and the variant `published` in one transaction.
+6. **Lease-based recovery.** A worker that crashes leaves a schedule in `processing` with a stale `locked_at`. A recovery sweep re-queues `processing` rows whose lease is older than a timeout back to `pending`, and re-enqueues all due `pending` rows.
+
+### Durability model
+
+The **database is the source of truth for what must be published**. Redis/BullMQ is an acceleration layer, not the system of record. A periodic scheduler sweep queries due `pending` schedules and enqueues jobs idempotently. Therefore:
+
+* Losing Redis does not lose scheduled work.
+* Restarting a worker resumes from the database.
+* The acceptance test is:
+
+  ```text
+  publish → worker failure → worker restart
+          → exactly one successful published result
+          → zero duplicate posts
+  ```
+
+---
+
+## 7. API Surface
+
+Canonical contract. Where the current implementation diverges, the divergence is called out and tracked in `TASKS.md`.
 
 ### Posts
 
@@ -323,31 +396,25 @@ Idempotency is a core reliability requirement of the system.
 POST /api/posts
 ```
 
-Accepts either:
+Markdown:
 
 ```json
-{
-  "sourceType": "markdown",
-  "content": "..."
-}
+{ "sourceType": "markdown", "content": "..." }
 ```
 
-or:
+URL:
 
 ```json
-{
-  "sourceType": "url",
-  "sourceUrl": "https://example.com/article"
-}
+{ "sourceType": "url", "sourceUrl": "https://example.com/article" }
 ```
+
+> **Divergence:** the current code accepts `url` and ignores `sourceUrl`. The design contract uses `sourceUrl`; the handler must accept it (and may keep `url` as an alias for compatibility).
 
 #### Get a post
 
 ```http
 GET /api/posts/:id
 ```
-
----
 
 ### Variant generation
 
@@ -357,15 +424,19 @@ GET /api/posts/:id
 POST /api/posts/:id/generate
 ```
 
-Reads only the stored post and generates platform-specific variants.
+Reads only the stored post and enqueues generation. Returns `202`/`201` with the generation job.
+
+#### Get generation job
+
+```http
+GET /api/generation/:id
+```
 
 #### List variants for a post
 
 ```http
 GET /api/posts/:id/variants
 ```
-
----
 
 ### Variant review
 
@@ -381,7 +452,13 @@ GET /api/variants/:id
 PUT /api/variants/:id
 ```
 
-Edited content must pass platform validation.
+```json
+{ "content": "..." }
+```
+
+Edited content must pass platform validation before persistence.
+
+> **Divergence:** the current code registers `PATCH` and does not validate the new content. Design canonical verb is `PUT` (support both if convenient); validation is mandatory.
 
 #### Approve variant
 
@@ -395,7 +472,9 @@ POST /api/variants/:id/approve
 POST /api/variants/:id/reject
 ```
 
----
+```json
+{ "reason": "..." }
+```
 
 ### Scheduling
 
@@ -405,15 +484,13 @@ POST /api/variants/:id/reject
 POST /api/variants/:id/schedule
 ```
 
-Example:
-
 ```json
-{
-  "scheduledAt": "2026-09-10T18:00:00Z"
-}
+{ "scheduledAt": "2026-09-10T18:00:00Z" }
 ```
 
-If the variant is not approved, the endpoint returns a `4xx` response and does not create a schedule.
+If the variant is not `APPROVED`, return `409` (a `4xx`) with an error message and create no schedule.
+
+> **Divergence:** the current handler reads `scheduleTime`, only checks approval, and never creates a schedule. It must be completed to persist a `pending` schedule and enqueue the publish job.
 
 #### Get schedule
 
@@ -421,7 +498,11 @@ If the variant is not approved, the endpoint returns a `4xx` response and does n
 GET /api/schedules/:id
 ```
 
----
+#### List schedules
+
+```http
+GET /api/schedules?status=pending&variantId=...
+```
 
 ### Publish history
 
@@ -431,34 +512,43 @@ GET /api/schedules/:id
 GET /api/schedules/:id/attempts
 ```
 
-Returns the complete publish history for the schedule.
+Returns the complete publish history for the schedule, including the mock preview payload for mock adapters.
+
+### Health
+
+```http
+GET /health
+```
 
 ---
 
-## 7. Main Application Flow
+## 8. Main Application Flow
 
 ```text
 POST /api/posts
         │
         ▼
-Store source post
+Store source post (URL fetched once, normalized to Markdown)
         │
         ▼
 POST /api/posts/:id/generate
         │
         ▼
-Read stored post
+Enqueue BullMQ generation job
         │
         ▼
-Generate platform variants
+Read stored post only
         │
         ▼
-Validate each variant
-        │
-        ├── invalid → reject with validation error
+Generate platform variants (AI or templates)
         │
         ▼
-Store valid variants as DRAFT
+Validate each variant against its profile
+        │
+        ├── invalid → reject with a rule-naming validation error
+        │
+        ▼
+Upsert valid variants as DRAFT
         │
         ▼
 Human reviews variant
@@ -468,67 +558,94 @@ Human reviews variant
         └── approve
               │
               ▼
-        Create schedule
+Create schedule (unique idempotency key = variant + slot)
               │
               ▼
-        BullMQ job
+Scheduler sweep / BullMQ delayed job
               │
               ▼
-        Worker processes job
+Worker atomically claims the due schedule
               │
               ▼
-        SocialPublisher
-              │
+SocialPublisher
         ┌─────┼──────────┐
         ▼     ▼          ▼
      Telegram Mock X  Mock LinkedIn
               │
               ▼
-        Publish history
+Record publish attempt + update schedule/variant
+              │
+              ▼
+Publish history (exactly one success per slot)
 ```
 
 ---
 
-## 8. Infrastructure
+## 9. Infrastructure
 
-The application will run using Docker Compose.
+Target Docker Compose topology:
 
 ```text
 docker-compose
-├── api
-│   └── Express + TypeScript
-│
-├── worker
-│   └── BullMQ worker
-│
-├── postgres
-│   └── PostgreSQL
-│
-└── redis
-    └── BullMQ queue backend
+├── api        # Express + TypeScript
+├── worker     # BullMQ generation + publishing workers, scheduler sweep
+├── postgres   # PostgreSQL
+└── redis      # BullMQ queue backend
 ```
 
-The API and worker share PostgreSQL and Redis but have separate responsibilities.
+The API and worker share PostgreSQL and Redis but have separate responsibilities:
 
-The API manages campaigns, variants, review, and scheduling.
+* The **API** manages campaigns, variants, review, scheduling, and read APIs.
+* The **worker** processes due generation and publishing jobs and runs recovery sweeps.
 
-The worker processes due publishing jobs.
+The README must make `docker compose up` plus a seed step the entire setup for a stranger.
 
 ---
 
-## 9. Explicit Non-Goals
+## 10. Configuration
 
-The core system will **not** implement:
+All configuration is environment-based (Twelve-Factor). Secrets live only in `.env`, which is git-ignored; `.env.example` ships placeholders for every variable.
 
-* real X publishing
-* real LinkedIn publishing
-* Instagram publishing
-* image generation
-* analytics
-* engagement tracking
+| Variable             | Purpose                              |
+| -------------------- | ------------------------------------ |
+| `PORT`               | API port                             |
+| `DATABASE_URL`       | PostgreSQL connection string         |
+| `REDIS_HOST`         | Redis host for BullMQ                |
+| `REDIS_PORT`         | Redis port                           |
+| `REDIS_PASSWORD`     | Redis password                       |
+| `LLM_API_BASE_URL`   | OpenAI-compatible AI base URL        |
+| `LLM_API_KEY`        | AI API key                           |
+| `LLM_MODEL`          | AI model name                        |
+| `TELEGRAM_BOT_TOKEN` | Real adapter bot token               |
+| `TELEGRAM_CHAT_ID`   | Real adapter target chat/channel     |
 
-X and LinkedIn will be represented by mock adapters.
+---
 
-The system will use one real free publishing target, Telegram, to demonstrate the adapter architecture and real publishing flow.
+## 11. Implementation Status
 
-These features are explicitly outside the core scope of the capstone.
+Accurate as of the current branch (`feat/adapters-and-idempotent-publish`).
+
+| Capability | Status | Notes |
+| --- | --- | --- |
+| Post ingestion (Markdown) | ✅ Done | Validation + storage |
+| Post ingestion (URL) | ✅ Done | Fetch → Readability → Markdown |
+| Platform constraint profiles (config) | ✅ Done | `platforms` table + seed |
+| Variant generation (AI) | ✅ Done | OpenAI-compatible provider + BullMQ worker |
+| Validation: length, hashtags | ✅ Done | `VariantValidator` |
+| Validation: tone | ⚠️ Partial | Prompt only; no deterministic rule |
+| Review: get/approve/reject | ⚠️ Partial | No status-transition guards |
+| Review: edit re-validation | ❌ Missing | Edit persists unvalidated content |
+| Publisher interface + 3 adapters | ✅ Done | Registry present |
+| Mock preview persisted in DB | ⚠️ Partial | Only via `publish_attempts` once publishing exists |
+| Schedule creation endpoint | ❌ Missing | Stub returns 409 only |
+| Publishing worker + scheduler | ❌ Missing | Heart of the grade |
+| Idempotent publish | ❌ Missing | Schema only |
+| Publish history API | ❌ Missing | Schema only |
+| Durable recovery / crash safety | ❌ Missing | No lease/recovery sweep |
+| Full `docker compose up` (api+worker) | ❌ Missing | Only db + redis |
+| `.env.example` complete | ❌ Missing | Only `DATABASE_URL` |
+| Tests | ❌ Missing | `npm test` runs 0 tests |
+| `EVIDENCE.md` / `BUILDLOG.md` | ❌ Missing | Required at submission |
+| README accuracy | ⚠️ Stale | Describes an earlier state |
+
+See [`TASKS.md`](./TASKS.md) for the actionable backlog and [`PLAN.md`](./PLAN.md) for the phased implementation plan.

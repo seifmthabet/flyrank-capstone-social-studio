@@ -17,6 +17,10 @@ const envSchema = z.object({
         base_url: z.string().url("LLM_BASE_URL must be a valid URL"),
         api_key: z.string().min(1, "LLM_API_KEY is required"),
         model: z.string().min(1, "LLM_MODEL is required")
+    }),
+    telegram: z.object({
+        bot_token: z.string().min(1, "TELEGRAM_BOT_TOKEN is required"),
+        chat_id: z.string().min(1, "TELEGRAM_CHAT_ID is required")
     })
 })
 
@@ -36,6 +40,10 @@ const parsedEnv = envSchema.safeParse({
         base_url: process.env.LLM_API_BASE_URL,
         api_key: process.env.LLM_API_KEY,
         model: process.env.LLM_MODEL
+    },
+    telegram: {
+        bot_token: process.env.TELEGRAM_BOT_TOKEN,
+        chat_id: process.env.TELEGRAM_CHAT_ID
     }
 })
 
