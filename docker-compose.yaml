@@ -1,4 +1,55 @@
 services:
+  api:
+    build: .
+    command: node --import tsx src/index.ts
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://postgres:dev@db:5432/social-studio
+      REDIS_HOST: cache
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: dev
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    build: .
+    command: node --import tsx src/workers/generation.worker.ts
+    env_file: [ .env ]
+    environment:
+        DATABASE_URL: postgres://postgres:dev@db:5432/social-studio
+        REDIS_HOST: cache
+        REDIS_PORT: 6379
+        REDIS_PASSWORD: dev
+    depends_on:
+        db:
+          condition: service_healthy
+        cache:
+          condition: service_healthy
+        migrate:
+          condition: service_completed_successfully
+
+  migrate:
+    build: .
+    command: sh -c "node --import tsx src/scripts/migrate.ts && node --import tsx src/scripts/seed.ts"
+    env_file: [ .env ]
+    environment:
+      DATABASE_URL: postgres://postgres:dev@db:5432/social-studio
+      REDIS_HOST: cache
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: dev
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
   db:
     image: postgres:18-alpine
     environment:
@@ -8,6 +59,11 @@ services:
     ports:
       - "5432:5432"
     volumes: ["db-data:/var/lib/postgresql"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d social-studio"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   cache:
     image: redis:8.10-alpine
@@ -17,8 +73,11 @@ services:
     command:  redis-server --save 20 1 --loglevel warning --requirepass dev
     volumes:
       - cache:/data
-
-
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -a dev ping | grep PONG" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   cache:
