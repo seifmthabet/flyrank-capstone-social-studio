@@ -13,7 +13,7 @@ export const createVariantsRoute = (deps: {
         res.status(200).json({ data: variant });
     });
 
-    variantsRouter.patch("/:id", async (req: Request, res: Response) => {
+    variantsRouter.put("/:id", async (req: Request, res: Response) => {
         const { content } = req.body;
         await deps.variantsService.editVariant(String(req.params.id), content);
         res.status(200).json({ message: "Variant updated successfully" });

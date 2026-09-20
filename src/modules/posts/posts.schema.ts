@@ -12,7 +12,7 @@ export const postSchema = z.object({
 export const createPostSchema = z.discriminatedUnion("sourceType", [
     z.object({
         sourceType: z.literal("url"),
-        url: z.string().trim().min(1),
+        sourceUrl: z.string().trim().min(1),
         content: z.string().trim().min(1).optional(),
     }),
     z.object({

@@ -37,4 +37,17 @@ export class PlatformsRepository implements IPlatformRepository {
         `);
         return result.rows.map(mapPlatformRow);
     }
+
+    async findById(platformId: string): Promise<Platform | null> {
+        const result = await pool.query<PlatformRow>(
+            `
+            SELECT id, code, name, max_length, tone, max_hashtags, adapter, enabled, created_at, updated_at
+            FROM platforms
+            WHERE id = $1
+        `,
+            [platformId],
+        );
+
+        return result.rows[0] ? mapPlatformRow(result.rows[0]) : null;
+    }
 }

@@ -48,7 +48,7 @@ export class PostService implements IPostService {
 
         return await this.postRepository.create({
             sourceType: "url",
-            url: url,
+            sourceUrl: url,
             content,
         });
     }
