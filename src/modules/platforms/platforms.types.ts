@@ -13,4 +13,5 @@ export interface Platform {
 
 export interface IPlatformRepository {
     listEnabled(): Promise<Platform[]>;
+    findById(platformId: string): Promise<Platform | null>;
 }

@@ -47,7 +47,10 @@ export const createGenerationContainer = (): GenerationContainer => {
 
 export const createVariantsContainer = () => {
     const variantsRepository = new VariantsRepository();
-    const variantsService = new VariantsService(variantsRepository);
+    const variantsService = new VariantsService(
+        variantsRepository,
+        new PlatformsRepository(),
+    );
 
     return { variantsService, variantsRepository };
 };
