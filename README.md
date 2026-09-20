@@ -83,6 +83,8 @@ GET /api/posts/:id/variants
 human review: PATCH / approve / reject
 ```
 
+> **Generation reads the stored post only.** The source URL is fetched once, at ingestion; generation never re-fetches it (see the invariant in `docs/DESIGN.md`).
+
 ---
 
 ## Tech stack
