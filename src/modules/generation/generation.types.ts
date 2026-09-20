@@ -25,7 +25,10 @@ export interface IGenerationRepository {
     setStatusProcessing(id: string): Promise<void>;
     setStatusCompleted(id: string): Promise<void>;
     setStatusFailed(id: string, error: string): Promise<void>;
-    reclaimStaleProcessing(leaseSeconds: number, maxAttempts: number): Promise<GenerationJob[]>;
+    reclaimStaleProcessing(
+        leaseSeconds: number,
+        maxAttempts: number,
+    ): Promise<GenerationJob[]>;
 }
 
 export interface IGenerationService {

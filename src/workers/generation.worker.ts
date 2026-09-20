@@ -1,8 +1,8 @@
 import { Worker } from "bullmq";
 import { createGenerationContainer } from "../config/container.js";
 import { env } from "../config/env.js";
+import { recoverStaleGenerationJobs } from "../modules/generation/generation.recovery.js";
 import type { GenerationJobData } from "../modules/generation/generation.types.js";
-import {recoverStaleGenerationJobs} from "../modules/generation/generation.recovery.js";
 
 const connection = {
     host: env.redis.host,

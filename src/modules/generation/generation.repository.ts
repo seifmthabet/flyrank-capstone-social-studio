@@ -94,8 +94,12 @@ export class GenerationRepository implements IGenerationRepository {
         );
     }
 
-    async reclaimStaleProcessing(leaseSeconds: number, maxAttempts: number): Promise<GenerationJob[]> {
-        const requeued = await pool.query<GenerationJobRow>(`
+    async reclaimStaleProcessing(
+        leaseSeconds: number,
+        maxAttempts: number,
+    ): Promise<GenerationJob[]> {
+        const requeued = await pool.query<GenerationJobRow>(
+            `
             UPDATE generation_jobs
             SET status = 'queued',
                 error = 'Requeued after worker interruption',
@@ -105,9 +109,12 @@ export class GenerationRepository implements IGenerationRepository {
               AND started_at < NOW() - make_interval(secs => $1)
               AND attempts < $2
             RETURNING ${JOB_COLUMNS}
-        `, [leaseSeconds, maxAttempts]);
+        `,
+            [leaseSeconds, maxAttempts],
+        );
 
-        await pool.query(`
+        await pool.query(
+            `
             UPDATE generation_jobs
             SET status = 'failed',
                 error = 'Exceeded max attempts after worker crash',
@@ -117,7 +124,9 @@ export class GenerationRepository implements IGenerationRepository {
               AND started_at IS NOT NULL
               AND started_at < NOW() - make_interval(secs => $1)
               AND attempts >= $2
-        `, [leaseSeconds, maxAttempts]);
+        `,
+            [leaseSeconds, maxAttempts],
+        );
 
         return requeued.rows.map(mapGenerationJobRow);
     }
