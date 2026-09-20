@@ -31,7 +31,7 @@ export class PostRepository implements IPostRepository {
                 `
                  INSERT INTO posts (source_type, source_url, content) VALUES ($1, $2, $3) RETURNING id, source_type, source_url, content, created_at, updated_at
                     `,
-                [input.sourceType, input.url, input.content],
+                [input.sourceType, input.sourceUrl, input.content],
             );
         } else {
             result = await pool.query<PostRow>(

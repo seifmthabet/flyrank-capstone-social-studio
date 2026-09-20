@@ -25,7 +25,7 @@ export const createPostsRoute = (deps: { postService: PostService }) => {
 
         if (parsed.data.sourceType === "url") {
             const post = await deps.postService.ingestUrl({
-                url: parsed.data.url,
+                url: parsed.data.sourceUrl,
             });
             return res.status(201).json({
                 data: post,
