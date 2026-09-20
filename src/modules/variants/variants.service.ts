@@ -62,6 +62,14 @@ export class VariantsService implements IVariantsService {
         if (!variant) {
             throw AppError.notFound("Variant not found");
         }
+
+        if (variant.status === "published") {
+            throw AppError.conflict(
+                "Published variants cannot be approved again",
+                "VARIANT_ALREADY_PUBLISHED",
+            );
+        }
+
         await this.variantsRepository.approveVariant(variantId);
     }
 
@@ -69,6 +77,12 @@ export class VariantsService implements IVariantsService {
         const variant = await this.variantsRepository.findById(variantId);
         if (!variant) {
             throw AppError.notFound("Variant not found");
+        }
+        if (variant.status === "published") {
+            throw AppError.conflict(
+                "Published variants cannot be rejected",
+                "VARIANT_ALREADY_PUBLISHED",
+            );
         }
         await this.variantsRepository.rejectVariant(variantId, reason);
     }
