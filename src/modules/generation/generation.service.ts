@@ -71,6 +71,19 @@ export class GenerationService implements IGenerationService {
     }
 
     async processGenerationJob(jobId: string, postId: string): Promise<void> {
+        const job = await this.generationRepository.findById(jobId);
+
+        if (!job) {
+            throw AppError.notFound(
+                `Generation job ${jobId} not found`,
+                "JOB_NOT_FOUND",
+            );
+        }
+
+        if (job.status === "completed") {
+            return;
+        }
+
         await this.generationRepository.setStatusProcessing(jobId);
 
         const post = await this.postRepository.findById(postId);

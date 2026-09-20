@@ -286,6 +286,37 @@ created_at
 updated_at
 ```
 
+### Generation read path (source-of-truth invariant)
+
+Generation must never re-fetch the source URL. It reads `posts.content` and nothing else.
+
+```text
+POST /api/posts/:id/generate
+  └─ GenerationService.createGenerationJob(postId)
+       └─ enqueue { generationJobId, postId }          # ids only — no content, no URL
+            └─ worker: processGenerationJob(jobId, postId)
+                 ├─ GenerationRepository.findById / setStatusProcessing
+                 ├─ PostRepository.findById(postId)    # the stored post
+                 ├─ post.content ─→ GroqAiProvider      # no source-network call
+                 ├─ VariantValidator.validate(result.content, platform)
+                 └─ VariantsRepository.upsertVariants(postId, ...)
+```
+
+This is **enforced by construction**, not by convention. `createGenerationContainer()`
+composes `PostRepository`, `PlatformsRepository`, `VariantsRepository`, and
+`GroqAiProvider`. It never constructs `UrlFetcher`, `ArticleExtractor`, or
+`MarkdownConverter` — those exist only in `createPostContainer()` (the ingestion
+path). The queue payload carries only ids, and `PostService.ingestUrl` is the
+single place in the codebase that reaches the network. The generation read path
+therefore has no dependency that could perform source-network I/O.
+
+Consequences:
+
+* An ingested post can be regenerated at any time, even if the original URL is
+  later unavailable, changed, or deleted.
+* Regeneration output depends only on stored state, so retries and crash-recovery
+  re-runs are deterministic with respect to the source.
+
 ---
 
 ## 5. Publishing Architecture
