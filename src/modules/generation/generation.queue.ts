@@ -26,5 +26,8 @@ export const enqueueGenerationJob = async (data: GenerationJobData) => {
             backoff: { type: "exponential", delay: 2000 },
         },
     });
-    await queue.add("generate-variants", data, jobOptions);
+    await queue.add("generate-variants", data, {
+        ...jobOptions,
+        jobId: data.generationJobId,
+    });
 };

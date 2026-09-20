@@ -2,6 +2,7 @@ import { Worker } from "bullmq";
 import { createGenerationContainer } from "../config/container.js";
 import { env } from "../config/env.js";
 import type { GenerationJobData } from "../modules/generation/generation.types.js";
+import {recoverStaleGenerationJobs} from "../modules/generation/generation.recovery.js";
 
 const connection = {
     host: env.redis.host,
@@ -10,6 +11,16 @@ const connection = {
 };
 
 const { generationService, generationRepository } = createGenerationContainer();
+
+recoverStaleGenerationJobs(generationRepository).catch((error) => {
+    console.error("Error recovering stale generation jobs:", error);
+});
+
+setInterval(() => {
+    recoverStaleGenerationJobs(generationRepository).catch((error) => {
+        console.error("Error recovering stale generation jobs:", error);
+    });
+}, 60000);
 
 export const generationWorker = new Worker(
     "generation",
