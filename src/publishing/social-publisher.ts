@@ -3,6 +3,7 @@ export interface PublisherInput {
     platformCode: string;
     variantId: string;
     scheduleId: string;
+    idempotencyKey: string;
 }
 
 export interface PublisherPreview {

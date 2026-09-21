@@ -13,7 +13,7 @@ export interface PublishingAttempt {
     error: string | null;
 }
 
-export interface IPublisherRepository {
+export interface IPublishingRepository {
     createAttempt(input: { scheduleId: string; idempotencyKey: string }): Promise<PublishingAttempt>;
     completeAttempt(id: string, input: {
         status: Exclude<AttemptStatus, "started">;

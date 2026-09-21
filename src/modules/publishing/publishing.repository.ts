@@ -1,7 +1,7 @@
 import { pool } from "../../database/db.js";
 import type {
     AttemptStatus,
-    IPublisherRepository,
+    IPublishingRepository,
     PublishingAttempt,
 } from "./publishing.types.js";
 
@@ -35,7 +35,7 @@ const mapAttemptRow = (row: AttemptRow): PublishingAttempt => {
     };
 };
 
-class PublisherRepository implements IPublisherRepository {
+export class PublishingRepository implements IPublishingRepository {
     async createAttempt(input: {
         scheduleId: string;
         idempotencyKey: string;
