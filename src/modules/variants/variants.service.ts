@@ -86,4 +86,23 @@ export class VariantsService implements IVariantsService {
         }
         await this.variantsRepository.rejectVariant(variantId, reason);
     }
+
+    async scheduleVariant(variantId: string, scheduledAt: Date): Promise<void> {
+        const variant = await this.variantsRepository.findById(variantId);
+        if (!variant) {
+            throw AppError.notFound("Variant not found");
+        }
+
+        if (variant.status !== "approved") {
+            throw AppError.conflict(
+                "Only approved variants can be scheduled",
+                "VARIANT_NOT_APPROVED",
+            );
+        }
+
+        
+
+        //TODO: Additional logic for scheduling the variant can be added here
+
+    }
 }

@@ -3,6 +3,15 @@ export interface PublisherInput {
     platformCode: string;
     variantId: string;
     scheduleId: string;
+    idempotencyKey: string;
+}
+
+export interface PublisherPreview {
+    platform: string;
+    adapter: string;
+    simulated: boolean;
+    preview: string;
+    characterCount: number;
 }
 
 export interface PublisherResult {
