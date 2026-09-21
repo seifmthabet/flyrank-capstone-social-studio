@@ -5,6 +5,14 @@ export interface PublisherInput {
     scheduleId: string;
 }
 
+export interface PublisherPreview {
+    platform: string;
+    adapter: string;
+    simulated: boolean;
+    preview: string;
+    characterCount: number;
+}
+
 export interface PublisherResult {
     success: boolean;
     externalPostId?: string;

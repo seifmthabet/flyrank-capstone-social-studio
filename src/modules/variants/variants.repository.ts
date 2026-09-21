@@ -154,4 +154,10 @@ export class VariantsRepository implements IVariantsRepository {
             throw AppError.notFound(`Variant with ID ${variantId} not found`);
         }
     }
+
+    async scheduleVariant(variantId: string, scheduledAt: Date): Promise<void> {
+        const result = await pool.query(`
+                INSERT INTO schedules ()
+            `)
+    }
 }
