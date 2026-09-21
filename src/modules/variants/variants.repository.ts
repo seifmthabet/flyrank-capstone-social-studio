@@ -158,6 +158,6 @@ export class VariantsRepository implements IVariantsRepository {
     async scheduleVariant(variantId: string, scheduledAt: Date): Promise<void> {
         const result = await pool.query(`
                 INSERT INTO schedules ()
-            `)
+            `);
     }
 }

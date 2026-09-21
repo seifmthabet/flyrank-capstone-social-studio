@@ -1,8 +1,10 @@
 import { type Request, type Response, Router } from "express";
+import type { ISchedulesService } from "../schedules/schedules.types.js";
 import type { IVariantsService } from "./variants.types.js";
 
-export const createVariantsRoute = (deps: {
+    export const createVariantsRoute = (deps: {
     variantsService: IVariantsService;
+    schedulesService: ISchedulesService;
 }) => {
     const variantsRouter = Router();
 
@@ -33,15 +35,28 @@ export const createVariantsRoute = (deps: {
     variantsRouter.post(
         "/:id/schedule",
         async (req: Request, res: Response) => {
-            // const { scheduleTime } = req.body;
+            const { scheduleTime } = req.body;
             const post = await deps.variantsService.findById(
                 String(req.params.id),
             );
+
+            if (!post) {
+                res.status(404).json({ message: "Variant not found" });
+                return;
+            }
+
             if (post?.status !== "approved") {
                 res.status(409).json({
                     message: "Variant must be approved before scheduling",
                 });
             }
+
+            const schedule = await deps.schedulesService.scheduleVariant(
+                String(req.params.id),
+                new Date(scheduleTime),
+            );
+
+            res.status(201).json({ data: schedule });
         },
     );
 

@@ -11,6 +11,8 @@ import type {
 import { PlatformsRepository } from "../modules/platforms/platforms.repository.js";
 import { PostRepository } from "../modules/posts/posts.repository.js";
 import { PostService } from "../modules/posts/posts.service.js";
+import { SchedulesRepository } from "../modules/schedules/schedules.repository.js";
+import { SchedulesService } from "../modules/schedules/schedules.service.js";
 import { VariantsRepository } from "../modules/variants/variants.repository.js";
 import { VariantsService } from "../modules/variants/variants.service.js";
 import { env } from "./env.js";
@@ -52,5 +54,9 @@ export const createVariantsContainer = () => {
         new PlatformsRepository(),
     );
 
-    return { variantsService, variantsRepository };
+    const schedulesService = new SchedulesService(
+        new SchedulesRepository(),
+    );
+
+    return { variantsService, variantsRepository, schedulesService };
 };

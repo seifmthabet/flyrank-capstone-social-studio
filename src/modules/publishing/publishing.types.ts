@@ -14,12 +14,18 @@ export interface PublishingAttempt {
 }
 
 export interface IPublishingRepository {
-    createAttempt(input: { scheduleId: string; idempotencyKey: string }): Promise<PublishingAttempt>;
-    completeAttempt(id: string, input: {
-        status: Exclude<AttemptStatus, "started">;
-        externalPostId?: string | null;
-        response?: unknown;
-        error?: string | null;
-    }): Promise<void>;
+    createAttempt(input: {
+        scheduleId: string;
+        idempotencyKey: string;
+    }): Promise<PublishingAttempt>;
+    completeAttempt(
+        id: string,
+        input: {
+            status: Exclude<AttemptStatus, "started">;
+            externalPostId?: string | null;
+            response?: unknown;
+            error?: string | null;
+        },
+    ): Promise<void>;
     findAttemptsByScheduleId(scheduleId: string): Promise<PublishingAttempt[]>;
 }

@@ -3,7 +3,7 @@ import type { IPlatformRepository } from "../platforms/platforms.types.js";
 import type { IVariantsRepository } from "../variants/variants.types.js";
 import type { IPublishingRepository } from "./publishing.types.js";
 
-export type PublisherResolver = (adapterCode: string) => SocialPublisher
+export type PublisherResolver = (adapterCode: string) => SocialPublisher;
 
 export class PublishingService {
     constructor(
@@ -14,7 +14,5 @@ export class PublishingService {
         private readonly resolvePublisher: PublisherResolver,
     ) {}
 
-    async publishSchdule(scheduleId: string) {
-        
-    }
+    async publishSchdule(scheduleId: string) {}
 }

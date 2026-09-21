@@ -100,9 +100,6 @@ export class VariantsService implements IVariantsService {
             );
         }
 
-        
-
         //TODO: Additional logic for scheduling the variant can be added here
-
     }
 }

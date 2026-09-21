@@ -13,13 +13,13 @@ const app = express();
 
 const { postService } = createPostContainer();
 const { generationService } = createGenerationContainer();
-const { variantsService } = createVariantsContainer();
+const { variantsService, schedulesService } = createVariantsContainer();
 
 app.use(express.json());
 
 app.use("/api/posts", createPostsRoute({ postService }));
 app.use("/api", createGenerationRoute({ generationService }));
-app.use("/api/variants", createVariantsRoute({ variantsService }));
+app.use("/api/variants", createVariantsRoute({ variantsService, schedulesService }));
 
 app.use(errorHandler);
 
