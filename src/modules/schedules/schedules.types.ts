@@ -1,3 +1,5 @@
+import type { PoolClient } from "pg";
+
 export type ScheduleStatus = "pending" | "processing" | "success" | "failed";
 
 export interface Schedule {
@@ -39,7 +41,9 @@ export interface ISchedulesRepository {
         leaseSeconds: number,
         maxAttempts: number,
     ): Promise<Schedule[]>;
+    claim(client: PoolClient, id: string): Promise<Schedule | null>;
     markStatus(
+        client: PoolClient,
         id: string,
         status: ScheduleStatus,
         error?: string | null,

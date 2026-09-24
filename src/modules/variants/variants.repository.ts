@@ -1,3 +1,4 @@
+import type { PoolClient } from "pg";
 import pool from "../../database/db.js";
 import { AppError } from "../../shared/error.js";
 import type {
@@ -155,9 +156,10 @@ export class VariantsRepository implements IVariantsRepository {
         }
     }
 
-    async scheduleVariant(variantId: string, scheduledAt: Date): Promise<void> {
-        const result = await pool.query(`
-                INSERT INTO schedules ()
-            `);
+    async markPublished(client: PoolClient, variantId: string) {
+        await client.query(
+            `UPDATE variants SET status = 'published', updated_at = NOW() WHERE id = $1`,
+            [variantId],
+        );
     }
 }

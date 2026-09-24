@@ -1,3 +1,5 @@
+import type { PoolClient } from "pg";
+
 export type VariantStatus = "draft" | "approved" | "rejected" | "published";
 
 export interface Variant {
@@ -27,7 +29,7 @@ export interface IVariantsRepository {
     editVariant(variantId: string, content: string): Promise<void>;
     approveVariant(variantId: string): Promise<void>;
     rejectVariant(variantId: string, reason: string): Promise<void>;
-    scheduleVariant(variantId: string, scheduledAt: Date): Promise<void>;
+    markPublished(client: PoolClient, variantId: string): Promise<void>;
 }
 
 export interface IVariantsService {
@@ -35,5 +37,4 @@ export interface IVariantsService {
     editVariant(variantId: string, content: string): Promise<void>;
     approveVariant(variantId: string): Promise<void>;
     rejectVariant(variantId: string, reason: string): Promise<void>;
-    scheduleVariant(variantId: string, scheduledAt: Date): Promise<void>;
 }

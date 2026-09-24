@@ -1,3 +1,4 @@
+import type { PoolClient } from "pg";
 import { pool } from "../../database/db.js";
 import type {
     CreateScheduleResult,
@@ -122,12 +123,26 @@ export class SchedulesRepository implements ISchedulesRepository {
         return requeued.rows.map(mapScheduleRow);
     }
 
+    async claim(client: PoolClient, id: string): Promise<Schedule | null> {
+        const result = await client.query<ScheduleRow>(
+            `
+        UPDATE schedules
+        SET status = 'processing', locked_at = NOW(), attempt_count = attempt_count + 1, updated_at = NOW()
+        WHERE id = $1 AND status = 'pending' AND scheduled_at <= NOW()
+        RETURNING ${SCHEDULE_COLUMNS}
+    `,
+            [id],
+        );
+        return result.rows[0] ? mapScheduleRow(result.rows[0]) : null;
+    }
+
     async markStatus(
+        client: PoolClient,
         id: string,
         status: ScheduleStatus,
         error: string | null = null,
-    ) {
-        await pool.query(
+    ): Promise<void> {
+        await client.query(
             `UPDATE schedules
          SET status = $2, last_error = $3,
              completed_at = CASE WHEN $2 = 'success' THEN NOW() ELSE completed_at END,

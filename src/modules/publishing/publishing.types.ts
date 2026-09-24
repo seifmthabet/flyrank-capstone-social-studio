@@ -1,3 +1,5 @@
+import type { PoolClient } from "pg";
+
 export type AttemptStatus = "started" | "success" | "failed";
 
 export interface PublishingAttempt {
@@ -14,11 +16,12 @@ export interface PublishingAttempt {
 }
 
 export interface IPublishingRepository {
-    createAttempt(input: {
-        scheduleId: string;
-        idempotencyKey: string;
-    }): Promise<PublishingAttempt>;
+    createAttempt(
+        client: PoolClient,
+        input: { scheduleId: string; idempotencyKey: string },
+    ): Promise<PublishingAttempt>;
     completeAttempt(
+        client: PoolClient,
         id: string,
         input: {
             status: Exclude<AttemptStatus, "started">;
@@ -27,8 +30,11 @@ export interface IPublishingRepository {
             error?: string | null;
         },
     ): Promise<void>;
+    findSuccessAttempt(
+        client: PoolClient,
+        scheduleId: string,
+    ): Promise<PublishingAttempt | null>;
     findAttemptsByScheduleId(scheduleId: string): Promise<PublishingAttempt[]>;
-    findById(id: string): Promise<PublishingAttempt | null>;
 }
 
 export interface PublishingJobData {
