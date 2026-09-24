@@ -19,7 +19,7 @@ services:
       migrate:
         condition: service_completed_successfully
 
-  worker:
+  generation-worker:
     build: .
     command: node --import tsx src/workers/generation.worker.ts
     env_file: [ .env ]
@@ -35,6 +35,23 @@ services:
           condition: service_healthy
         migrate:
           condition: service_completed_successfully
+
+  publishing-worker:
+      build: .
+      command: node --import tsx src/workers/publishing.worker.ts
+      env_file: [ .env ]
+      environment:
+          DATABASE_URL: postgres://postgres:dev@db:5432/social-studio
+          REDIS_HOST: cache
+          REDIS_PORT: 6379
+          REDIS_PASSWORD: dev
+      depends_on:
+          db:
+            condition: service_healthy
+          cache:
+            condition: service_healthy
+          migrate:
+            condition: service_completed_successfully
 
   migrate:
     build: .

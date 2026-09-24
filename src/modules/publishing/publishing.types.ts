@@ -32,6 +32,5 @@ export interface IPublishingRepository {
 }
 
 export interface PublishingJobData {
-    publishingJobId: string;
-    scheduleId: string;
+    scheduledId: string;
 }

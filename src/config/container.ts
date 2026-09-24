@@ -73,15 +73,13 @@ export const createSchedulesContainer = () => {
 
 export const createPublishingContainer = () => {
     const publishingRepository = new PublishingRepository();
+    const schedulesRepository = new SchedulesRepository();
     const publishingService = new PublishingService(
-        new SchedulesRepository(),
+        schedulesRepository,
         new VariantsRepository(),
         new PlatformsRepository(),
         publishingRepository,
-        (adapterCode) => {
-            return getPublisher(adapterCode);
-        },
+        getPublisher,
     );
-
-    return { publishingService, publishingRepository };
+    return { publishingService, publishingRepository, schedulesRepository };
 };

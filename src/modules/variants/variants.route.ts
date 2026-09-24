@@ -1,8 +1,8 @@
 import { type Request, type Response, Router } from "express";
+import { AppError } from "../../shared/error.js";
+import { scheduleInputSchema } from "../schedules/schedules.schema.js";
 import type { ISchedulesService } from "../schedules/schedules.types.js";
 import type { IVariantsService } from "./variants.types.js";
-import { scheduleInputSchema } from "../schedules/schedules.schema.js";
-import { AppError } from "../../shared/error.js";
 
 export const createVariantsRoute = (deps: {
     variantsService: IVariantsService;

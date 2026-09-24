@@ -78,4 +78,62 @@ export class SchedulesRepository implements ISchedulesRepository {
         );
         return result.rows[0] ? mapScheduleRow(result.rows[0]) : null;
     }
+
+    async findDuePending(now: Date): Promise<Schedule[]> {
+        const result = await pool.query<ScheduleRow>(
+            `
+            SELECT ${SCHEDULE_COLUMNS} FROM schedules
+            WHERE status = 'pending' AND scheduled_at <= $1
+            ORDER BY scheduled_at
+            `,
+            [now],
+        );
+        return result.rows.map(mapScheduleRow);
+    }
+
+    async reclaimStaleProcessing(
+        leaseSeconds: number,
+        maxAttempts: number,
+    ): Promise<Schedule[]> {
+        const requeued = await pool.query<ScheduleRow>(
+            `
+        UPDATE schedules
+        SET status = 'pending', last_error = 'Requeued after worker interruption', updated_at = NOW()
+        WHERE status = 'processing' AND locked_at IS NOT NULL
+          AND locked_at < NOW() - make_interval(secs => $1)
+          AND attempt_count < $2
+        RETURNING ${SCHEDULE_COLUMNS}
+    `,
+            [leaseSeconds, maxAttempts],
+        );
+
+        await pool.query(
+            `
+        UPDATE schedules
+        SET status = 'failed', last_error = 'Exceeded max attempts after worker crash',
+            completed_at = NOW(), updated_at = NOW()
+        WHERE status = 'processing' AND locked_at IS NOT NULL
+          AND locked_at < NOW() - make_interval(secs => $1)
+          AND attempt_count >= $2
+    `,
+            [leaseSeconds, maxAttempts],
+        );
+
+        return requeued.rows.map(mapScheduleRow);
+    }
+
+    async markStatus(
+        id: string,
+        status: ScheduleStatus,
+        error: string | null = null,
+    ) {
+        await pool.query(
+            `UPDATE schedules
+         SET status = $2, last_error = $3,
+             completed_at = CASE WHEN $2 = 'success' THEN NOW() ELSE completed_at END,
+             updated_at = NOW()
+         WHERE id = $1`,
+            [id, status, error],
+        );
+    }
 }

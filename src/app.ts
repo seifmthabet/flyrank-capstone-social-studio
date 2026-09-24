@@ -21,7 +21,10 @@ app.use(express.json());
 
 app.use("/api/posts", createPostsRoute({ postService }));
 app.use("/api", createGenerationRoute({ generationService }));
-app.use("/api/variants", createVariantsRoute({ variantsService, schedulesService }));
+app.use(
+    "/api/variants",
+    createVariantsRoute({ variantsService, schedulesService }),
+);
 
 app.use(errorHandler);
 

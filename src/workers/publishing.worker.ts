@@ -1,6 +1,7 @@
 import { Worker } from "bullmq";
 import { createPublishingContainer } from "../config/container.js";
 import { env } from "../config/env.js";
+import { sweepDueSchedules } from "../modules/publishing/publishing.scheduler.js";
 import type { PublishingJobData } from "../modules/publishing/publishing.types.js";
 
 const connection = {
@@ -9,16 +10,23 @@ const connection = {
     password: env.redis.password,
 };
 
-const { publishingService, publishingRepository } = createPublishingContainer();
+const { publishingService, schedulesRepository } = createPublishingContainer();
+
+sweepDueSchedules(schedulesRepository).catch((error) => {
+    console.error("Error sweeping due schedules:", error);
+});
+
+setInterval(() => {
+    sweepDueSchedules(schedulesRepository).catch((error) => {
+        console.error("Publishing sweep failed:", error);
+    });
+}, 30_000);
 
 export const publishingWorker = new Worker(
     "publishing",
     async (job) => {
         const data = job.data as PublishingJobData;
-        await publishingService.publishSchdule(
-            data.publishingJobId,
-            data.scheduleId,
-        );
+        return await publishingService.publishSchdule(data.scheduledId);
     },
     {
         connection,
@@ -27,32 +35,9 @@ export const publishingWorker = new Worker(
 );
 
 publishingWorker.on("completed", async (job) => {
-    console.log(`Publishing job ${job.id} completed`);
-    await publishingRepository.completeAttempt(job.id as string, {
-        status: "success",
-        externalPostId: job.returnvalue?.externalPostId || null,
-        response: job.returnvalue?.response || null,
-        error: null,
-    });
+    console.log(`Publishing job ${job.id} completed successfully.`);
 });
 
-publishingWorker.on("failed", async (job, error) => {
-    console.error(`Publishing job ${job?.id} failed`, error);
-
-    if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
-        const data = job.data as PublishingJobData;
-        try {
-            await publishingRepository.completeAttempt(job.id as string, {
-                status: "failed",
-                externalPostId: null,
-                response: null,
-                error: error.message,
-            });
-        } catch (dbError) {
-            console.error(
-                `Failed to update publishing job ${data.publishingJobId} status to failed`,
-                dbError,
-            );
-        }
-    }
+publishingWorker.on("failed", async (job, err) => {
+    console.error(`Publishing job ${job?.id} failed:`, err);
 });
