@@ -1,5 +1,9 @@
+import { createHash } from "node:crypto";
 import { AppError } from "../../shared/error.js";
+import type { IVariantsRepository } from "../variants/variants.types.js";
 import type {
+    CreateScheduleResult,
+    EnqueuePublishJob,
     ISchedulesRepository,
     ISchedulesService,
     Schedule,
@@ -8,43 +12,55 @@ import type {
 export class SchedulesService implements ISchedulesService {
     constructor(
         private readonly schedulesRepository: ISchedulesRepository,
+        private readonly VariantsRepository: IVariantsRepository,
+        private readonly enqueuePublishJob: EnqueuePublishJob,
     ) {}
 
-    async scheduleVariant(
-        variantId: string,
-        scheduledAt: Date,
-    ): Promise<Schedule> {
-        if (scheduledAt < new Date()) {
-            throw AppError.badRequest("Scheduled time must be in the future");
+    async createSchedule(input: {
+        variantId: string;
+        scheduledAt: Date;
+    }): Promise<CreateScheduleResult> {
+        const variant = await this.VariantsRepository.findById(input.variantId);
+
+        if (!variant) {
+            throw AppError.notFound("Variant not found", "VARIANT_NOT_FOUND");
         }
 
-        const idempotencyKey = `${variantId}-${scheduledAt.getTime()}`;
+        if (variant.status !== "approved") {
+            throw AppError.conflict(
+                "Variant must be approved before scheduling",
+                "VARIANT_NOT_APPROVED",
+            );
+        }
 
-        const schedule = await this.schedulesRepository.createSchedule({
-            variantId,
+        const scheduledAt = new Date(input.scheduledAt);
+        const idempotencyKey = createHash("sha256")
+            .update(`${input.variantId}-${scheduledAt.toISOString()}`)
+            .digest("hex");
+
+        const { schedule, created } = await this.schedulesRepository.create(
+            input.variantId,
             scheduledAt,
             idempotencyKey,
-        });
+        );
 
+        if (created) {
+            await this.enqueuePublishJob({
+                scheduleId: schedule.id,
+                variantId: schedule.variantId,
+                scheduledAt: schedule.scheduledAt,
+                idempotencyKey: schedule.idempotencyKey,
+            });
+        }
+
+        return { schedule, created };
+    }
+
+    async getSchedule(scheduleId: string): Promise<Schedule> {
+        const schedule = await this.schedulesRepository.findById(scheduleId);
+        if (!schedule) {
+            throw AppError.notFound("Schedule not found", "SCHEDULE_NOT_FOUND");
+        }
         return schedule;
-    }
-
-    async getScheduleById(id: string): Promise<Schedule | null> {
-        return this.schedulesRepository.findScheduleById(id);
-    }
-
-    async getSchedulesByVariantId(variantId: string): Promise<Schedule[]> {
-        return this.schedulesRepository.findSchedulesByVariantId(variantId);
-    }
-
-    async getPendingSchedules(): Promise<Schedule[]> {
-        return this.schedulesRepository.findPendingSchedules();
-    }
-
-    async updateSchedule(
-        id: string,
-        input: Partial<Omit<Schedule, "id" | "variantId" | "createdAt" | "updatedAt">>,
-    ): Promise<void> {
-        await this.schedulesRepository.updateSchedule(id, input);
     }
 }

@@ -28,4 +28,10 @@ export interface IPublishingRepository {
         },
     ): Promise<void>;
     findAttemptsByScheduleId(scheduleId: string): Promise<PublishingAttempt[]>;
+    findById(id: string): Promise<PublishingAttempt | null>;
+}
+
+export interface PublishingJobData {
+    publishingJobId: string;
+    scheduleId: string;
 }

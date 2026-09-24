@@ -1,5 +1,6 @@
 import { pool } from "../../database/db.js";
 import type {
+    CreateScheduleResult,
     ISchedulesRepository,
     Schedule,
     ScheduleStatus,
@@ -19,9 +20,10 @@ interface ScheduleRow {
     completed_at: Date | null;
 }
 
-const SCHEDULE_COLUMNS = `id, variant_id, scheduled_at, status, idempotency_key, attempt_count, last_error, locked_at, created_at, updated_at, completed_at`;
+const SCHEDULE_COLUMNS =
+    "id, variant_id, scheduled_at, status, idempotency_key, attempt_count, last_error, locked_at, created_at, updated_at, completed_at";
 
-const mapRowToSchedule = (row: ScheduleRow): Schedule => ({
+const mapScheduleRow = (row: ScheduleRow): Schedule => ({
     id: row.id,
     variantId: row.variant_id,
     scheduledAt: row.scheduled_at,
@@ -36,85 +38,44 @@ const mapRowToSchedule = (row: ScheduleRow): Schedule => ({
 });
 
 export class SchedulesRepository implements ISchedulesRepository {
-    async createSchedule(input: {
-        variantId: string;
-        scheduledAt: Date;
-        idempotencyKey: string;
-    }): Promise<Schedule> {
-        const result = await pool.query<ScheduleRow>(
+    async create(
+        variantId: string,
+        scheduledAt: Date,
+        idempotencyKey: string,
+    ): Promise<CreateScheduleResult> {
+        const inserted = await pool.query(
             `
-                INSERT INTO schedules (variant_id, scheduled_at, idempotency_key)
-                VALUES ($1, $2, $3)
-                RETURNING ${SCHEDULE_COLUMNS}
+            INSERT INTO schedules (variant_id, scheduled_at, idempotency_key)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (idempotency_key) DO NOTHING
+            RETURNING ${SCHEDULE_COLUMNS}
             `,
-            [input.variantId, input.scheduledAt, input.idempotencyKey],
+            [variantId, scheduledAt, idempotencyKey],
         );
 
-        return mapRowToSchedule(result.rows[0] as ScheduleRow);
-    }
-
-    async findScheduleById(id: string): Promise<Schedule | null> {
-        const result = await pool.query<ScheduleRow>(
-            `
-                SELECT ${SCHEDULE_COLUMNS}
-                FROM schedules
-                WHERE id = $1
-            `,
-            [id],
-        );
-
-        if (result.rows.length === 0) {
-            return null;
+        if (inserted.rows[0]) {
+            return {
+                schedule: mapScheduleRow(inserted.rows[0]),
+                created: true,
+            };
         }
 
-        return mapRowToSchedule(result.rows[0] as ScheduleRow);
+        const existing = await pool.query(
+            `SELECT ${SCHEDULE_COLUMNS} FROM schedules WHERE idempotency_key = $1`,
+            [idempotencyKey],
+        );
+
+        return {
+            schedule: mapScheduleRow(existing.rows[0]),
+            created: false,
+        };
     }
 
-    async findSchedulesByVariantId(variantId: string): Promise<Schedule[]> {
+    async findById(scheduleId: string): Promise<Schedule | null> {
         const result = await pool.query<ScheduleRow>(
-            `
-                SELECT ${SCHEDULE_COLUMNS}
-                FROM schedules
-                WHERE variant_id = $1
-            `,
-            [variantId],
+            `SELECT ${SCHEDULE_COLUMNS} FROM schedules WHERE id = $1`,
+            [scheduleId],
         );
-
-        return result.rows.map((row) => mapRowToSchedule(row as ScheduleRow));
-    }
-
-    async findPendingSchedules(): Promise<Schedule[]> {
-        const result = await pool.query<ScheduleRow>(
-            `
-                SELECT ${SCHEDULE_COLUMNS}
-                FROM schedules
-                WHERE status = 'pending'
-            `,
-        );
-
-        return result.rows.map((row) => mapRowToSchedule(row as ScheduleRow));
-    }
-
-    async updateSchedule(
-        id: string,
-        input: Partial<Omit<Schedule, "id" | "variantId" | "createdAt" | "updatedAt">>,
-    ): Promise<void> {
-        const fields = Object.keys(input);
-        const values = Object.values(input);
-
-        if (fields.length === 0) {
-            return;
-        }
-
-        const setClause = fields.map((field, index) => `${field} = $${index + 1}`).join(", ");
-
-        await pool.query(
-            `
-                UPDATE schedules
-                SET ${setClause}, updated_at = NOW()
-                WHERE id = $${fields.length + 1}
-            `,
-            [...values, id],
-        );
+        return result.rows[0] ? mapScheduleRow(result.rows[0]) : null;
     }
 }

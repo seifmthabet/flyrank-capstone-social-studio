@@ -2,6 +2,7 @@ import express from "express";
 import {
     createGenerationContainer,
     createPostContainer,
+    createSchedulesContainer,
     createVariantsContainer,
 } from "./config/container.js";
 import { errorHandler } from "./middlewares/error-handler.js";
@@ -13,7 +14,8 @@ const app = express();
 
 const { postService } = createPostContainer();
 const { generationService } = createGenerationContainer();
-const { variantsService, schedulesService } = createVariantsContainer();
+const { variantsService } = createVariantsContainer();
+const { schedulesService } = createSchedulesContainer();
 
 app.use(express.json());
 

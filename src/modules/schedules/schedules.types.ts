@@ -1,5 +1,3 @@
-
-
 export type ScheduleStatus = "pending" | "processing" | "success" |"failed";
 
 export interface Schedule {
@@ -16,28 +14,31 @@ export interface Schedule {
     completedAt: Date | null;
 }
 
-export interface ISchedulesRepository {
-    createSchedule(input: {
+export interface CreateScheduleResult {
+    schedule: Schedule;
+    created: boolean;
+}
+
+export interface EnqueuePublishJob {
+    (data: {
+        scheduleId: string;
         variantId: string;
         scheduledAt: Date;
         idempotencyKey: string;
-    }): Promise<Schedule>;
-    findScheduleById(id: string): Promise<Schedule | null>;
-    findSchedulesByVariantId(variantId: string): Promise<Schedule[]>;
-    findPendingSchedules(): Promise<Schedule[]>;
-    updateSchedule(
-        id: string,
-        input: Partial<Omit<Schedule, "id" | "variantId" | "createdAt" | "updatedAt">>,
-    ): Promise<void>;
+    }) : Promise<void>;
+}
+
+export interface ISchedulesRepository {
+    create(
+        variantId: string,
+        scheduledAt: Date,
+        idempotencyKey: string,
+    ): Promise<CreateScheduleResult>;
+
+    findById(scheduleId: string): Promise<Schedule | null>;
 }
 
 export interface ISchedulesService {
-    scheduleVariant(variantId: string, scheduledAt: Date): Promise<Schedule>;
-    getScheduleById(id: string): Promise<Schedule | null>;
-    getSchedulesByVariantId(variantId: string): Promise<Schedule[]>;
-    getPendingSchedules(): Promise<Schedule[]>;
-    updateSchedule(
-        id: string,
-        input: Partial<Omit<Schedule, "id" | "variantId" | "createdAt" | "updatedAt">>,
-    ): Promise<void>;
+    createSchedule(input: { variantId: string; scheduledAt: Date }): Promise<CreateScheduleResult>;
+    getSchedule(scheduleId: string): Promise<Schedule>;
 }

@@ -1,8 +1,10 @@
 import { type Request, type Response, Router } from "express";
 import type { ISchedulesService } from "../schedules/schedules.types.js";
 import type { IVariantsService } from "./variants.types.js";
+import { scheduleInputSchema } from "../schedules/schedules.schema.js";
+import { AppError } from "../../shared/error.js";
 
-    export const createVariantsRoute = (deps: {
+export const createVariantsRoute = (deps: {
     variantsService: IVariantsService;
     schedulesService: ISchedulesService;
 }) => {
@@ -35,28 +37,26 @@ import type { IVariantsService } from "./variants.types.js";
     variantsRouter.post(
         "/:id/schedule",
         async (req: Request, res: Response) => {
-            const { scheduleTime } = req.body;
-            const post = await deps.variantsService.findById(
-                String(req.params.id),
-            );
+            const parsed = scheduleInputSchema.safeParse(req.body);
 
-            if (!post) {
-                res.status(404).json({ message: "Variant not found" });
-                return;
+            if (!parsed.success) {
+                throw AppError.badRequest(
+                    `Invalid schedule payload: ${parsed.error.issues.map((i) => i.message).join("; ")}`,
+                    "INVALID_SCHEDULE_PAYLOAD",
+                    parsed.error.issues.map((i) => ({
+                        path: i.path.join("."),
+                        message: i.message,
+                    })),
+                );
             }
 
-            if (post?.status !== "approved") {
-                res.status(409).json({
-                    message: "Variant must be approved before scheduling",
+            const { schedule, created } =
+                await deps.schedulesService.createSchedule({
+                    ...parsed.data,
+                    scheduledAt: new Date(parsed.data.scheduledAt),
                 });
-            }
 
-            const schedule = await deps.schedulesService.scheduleVariant(
-                String(req.params.id),
-                new Date(scheduleTime),
-            );
-
-            res.status(201).json({ data: schedule });
+            res.status(created ? 201 : 200).json({ data: schedule, created });
         },
     );
 
