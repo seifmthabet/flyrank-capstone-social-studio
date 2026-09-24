@@ -7,7 +7,7 @@
     "dev": "node --import tsx --watch src/index.ts",
     "start": "node --import tsx src/index.ts",
     "start:generation-worker": "node --import tsx src/workers/generation.worker.ts",
-    "start:publishing-worker": "node --import tsx src/workers/publishing.worker.ts",
+    "start:publish-worker": "node --import tsx src/workers/publishing.worker.ts",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",

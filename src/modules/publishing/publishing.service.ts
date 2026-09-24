@@ -27,7 +27,7 @@ export class PublishingService {
         private readonly transaction: TransactionRunner = dbTransaction,
     ) {}
 
-    async publishSchdule(scheduleId: string) {
+    async publishSchedule(scheduleId: string) {
         const claim = await this.transaction(async (client) => {
             const priorSuccess =
                 await this.publishingRepository.findSuccessAttempt(
@@ -78,74 +78,79 @@ export class PublishingService {
 
         const { claimed, attempt } = claim;
 
-        const variant = await this.variantsRepository.findById(
-            claimed.variantId,
-        );
-        if (!variant)
-            throw AppError.notFound("Variant not found", "VARIANT_NOT_FOUND");
-        const platform = await this.platformsRepository.findById(
-            variant.platformId,
-        );
-        if (!platform?.enabled)
-            throw AppError.conflict(
-                "Platform not enabled",
-                "PLATFORM_DISABLED",
-            );
-
-        let result: PublisherResult;
-
         try {
-            result = await this.resolvePublisher(platform.code).publish({
+            const variant = await this.variantsRepository.findById(
+                claimed.variantId,
+            );
+            if (!variant)
+                throw AppError.notFound(
+                    "Variant not found",
+                    "VARIANT_NOT_FOUND",
+                );
+            const platform = await this.platformsRepository.findById(
+                variant.platformId,
+            );
+            if (!platform?.enabled)
+                throw AppError.conflict(
+                    "Platform not enabled",
+                    "PLATFORM_DISABLED",
+                );
+
+            const result = await this.resolvePublisher(platform.code).publish({
                 content: variant.content,
                 platformCode: platform.code,
                 variantId: variant.id,
                 scheduleId: claimed.id,
                 idempotencyKey: claimed.idempotencyKey,
             });
-        } catch (thrown) {
-            await this.transaction(async (client) => {
-                await this.publishingRepository.completeAttempt(
-                    client,
-                    attempt.id,
-                    {
-                        status: "failed",
-                        error:
-                            thrown instanceof Error
-                                ? thrown.message
-                                : "Unknown publish error",
-                    },
-                );
-                await this.schedulesRepository.markStatus(
-                    client,
-                    claimed.id,
-                    "pending",
-                    thrown instanceof Error
-                        ? thrown.message
-                        : "Unknown publish error",
-                );
-            });
-            throw thrown;
-        }
 
-        if (result.success) {
-            await this.transaction(async (client) => {
-                await this.publishingRepository.completeAttempt(
-                    client,
-                    attempt.id,
-                    {
-                        status: "success",
-                        externalPostId: result.externalPostId ?? null,
-                        response: result.response ?? null,
-                    },
-                );
-                await this.schedulesRepository.markStatus(
-                    client,
-                    claimed.id,
-                    "success",
-                );
-                await this.variantsRepository.markPublished(client, variant.id);
-            });
-        } else {
+            if (result.success) {
+                await this.transaction(async (client) => {
+                    await this.publishingRepository.completeAttempt(
+                        client,
+                        attempt.id,
+                        {
+                            status: "success",
+                            externalPostId: result.externalPostId ?? null,
+                            response: result.response ?? null,
+                        },
+                    );
+                    await this.schedulesRepository.markStatus(
+                        client,
+                        claimed.id,
+                        "success",
+                    );
+                    await this.variantsRepository.markPublished(
+                        client,
+                        variant.id,
+                    );
+                });
+            } else {
+                const terminal = claimed.attemptCount >= MAX_PUBLISH_ATTEMPTS;
+                await this.transaction(async (client) => {
+                    await this.publishingRepository.completeAttempt(
+                        client,
+                        attempt.id,
+                        {
+                            status: "failed",
+                            error: result.error ?? "Publish failed",
+                        },
+                    );
+                    await this.schedulesRepository.markStatus(
+                        client,
+                        claimed.id,
+                        terminal ? "failed" : "pending",
+                        result.error ?? "Publish failed",
+                    );
+                });
+            }
+
+            return result;
+        } catch (thrown) {
+            const error =
+                thrown instanceof Error
+                    ? thrown.message
+                    : "Unknown publish error";
             const terminal = claimed.attemptCount >= MAX_PUBLISH_ATTEMPTS;
             await this.transaction(async (client) => {
                 await this.publishingRepository.completeAttempt(
@@ -153,18 +158,17 @@ export class PublishingService {
                     attempt.id,
                     {
                         status: "failed",
-                        error: result.error ?? "Publish failed",
+                        error,
                     },
                 );
                 await this.schedulesRepository.markStatus(
                     client,
                     claimed.id,
                     terminal ? "failed" : "pending",
-                    result.error ?? "Publish failed",
+                    error,
                 );
             });
+            throw thrown;
         }
-
-        return result;
     }
 }

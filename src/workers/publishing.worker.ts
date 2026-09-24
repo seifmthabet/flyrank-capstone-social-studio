@@ -26,7 +26,7 @@ export const publishingWorker = new Worker(
     "publishing",
     async (job) => {
         const data = job.data as PublishingJobData;
-        return await publishingService.publishSchdule(data.scheduledId);
+        return await publishingService.publishSchedule(data.scheduledId);
     },
     {
         connection,

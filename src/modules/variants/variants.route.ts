@@ -52,7 +52,7 @@ export const createVariantsRoute = (deps: {
 
             const { schedule, created } =
                 await deps.schedulesService.createSchedule({
-                    ...parsed.data,
+                    variantId: String(req.params.id),
                     scheduledAt: new Date(parsed.data.scheduledAt),
                 });
 

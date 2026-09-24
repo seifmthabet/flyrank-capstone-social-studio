@@ -35,7 +35,7 @@ export class SchedulesService implements ISchedulesService {
 
         const scheduledAt = new Date(input.scheduledAt);
         const idempotencyKey = createHash("sha256")
-            .update(`${input.variantId}-${scheduledAt.toISOString()}`)
+            .update(`${input.variantId}:${scheduledAt.toISOString()}`)
             .digest("hex");
 
         const { schedule, created } = await this.schedulesRepository.create(

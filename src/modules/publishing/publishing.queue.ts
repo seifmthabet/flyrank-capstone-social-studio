@@ -29,5 +29,9 @@ export const enqueuePublishingJob: EnqueuePublishJob = async (input) => {
             type: "exponential",
             delay: 2000,
         },
+        // A failed logical publish stays pending in PostgreSQL. Removing its
+        // terminal delivery job lets the DB-driven sweep enqueue a fresh job.
+        removeOnComplete: true,
+        removeOnFail: true,
     });
 };
