@@ -145,10 +145,13 @@ export class SchedulesRepository implements ISchedulesRepository {
         await client.query(
             `UPDATE schedules
          SET status = $2, last_error = $3,
-             completed_at = CASE WHEN $2 = 'success' THEN NOW() ELSE completed_at END,
+             completed_at = CASE
+                 WHEN $4 THEN NOW()
+                 ELSE completed_at
+             END,
              updated_at = NOW()
          WHERE id = $1`,
-            [id, status, error],
+            [id, status, error, status === "success"],
         );
     }
 }
