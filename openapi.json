@@ -1,0 +1,786 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Default module",
+    "description": "",
+    "version": "1.0.0"
+  },
+  "tags": [],
+  "paths": {
+    "/api/posts": {
+      "post": {
+        "summary": "add post",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              },
+              "example": {
+                "sourceType": "url",
+                "url": "https://research.ibm.com/blog/nasa-ibm-lunar-foundation-model"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                },
+                "example": {
+                  "data": {
+                    "id": "6bbb5e55-6985-4dc0-a59a-a0cc3db93ab3",
+                    "sourceType": "url",
+                    "sourceUrl": "https://research.ibm.com/blog/nasa-ibm-lunar-foundation-model",
+                    "content": "NASA’s Apollo missions proved that humans could make it to the Moon. The [Artemis program](https://www.nasa.gov/humans-in-space/artemis/) now underway will test whether we can live and work there, too. NASA’s long-term vision calls for building a base on the Moon where astronauts can carry out research, test new technologies, and prepare for a push onward to Mars.\n\nA good map is handy when exploring any unfamiliar place, but when the terrain is as rugged and otherworldly as the Moon’s, it’s essential. Today, IBM and NASA are open-sourcing the most thorough model for mapping the Moon to date. It consolidates and harmonizes decades of data collected on US and Japanese missions flown over our closest celestial neighbor.\n\nCalled [NASA-IBM Lunar Foundation Model](https://huggingface.co/nasa-ibm-ai4science/NASA-IBM-Lunar-Foundation-Model), it’s the first AI model to integrate observations captured in a range of modalities, and at different viewing angles and spatial scales. By distilling these disparate measurements into one representation, researchers have created a model for the Moon that, like earlier models of the Earth and Sun, [Prithvi EO](https://research.ibm.com/blog/prithvi2-geospatial) and [Surya](https://research.ibm.com/blog/surya-heliophysics-ai-model-sun), can be quickly adapted to different tasks and reused.\n\nA lunar AI model has many potential uses, but NASA has initially prioritized three: mapping the smaller, uncatalogued craters that pockmark the Moon’s surface; investigating its volcanic history; and scouring craters at both poles for ice, which could provide future astronaut crews with a source of drinking water, oxygen, and fuel.\n\n“Experienced travelers know to get the lay of the land before setting out for a foreign destination,” said Juan Bernabé-Moreno, director of IBM Research Europe for Ireland and UK. “We hope that our AI model can help the science community explore the lunar landscape and help the next generation of astronauts find their way around before heading into space.”\n\n## A Rosetta stone for multi-sensor data\n\n![blogArt\\_lunarFM\\_1920x1080\\_stillImage2.jpg](https://research.ibm.com/_next/image?url=https%3A%2F%2Fresearch-website-prod-cms-uploads.s3.us.cloud-object-storage.appdomain.cloud%2Fblog_Art_lunar_FM_1920x1080_still_Image2_a05fcf2f2b.jpg&w=3840&q=75)\n\nImage courtesy of NASA.\n\nThe new model addresses a longstanding challenge for lunar scientists handling high-volume, multi-sensor data at varying scales. NASA’s Gravity Recovery and Interior Laboratory ([GRAIL](https://science.nasa.gov/mission/grail/)) mission, for example, mapped the Moon’s gravitational field at a scale of 20 kilometers-per-pixel to visualize its crust and subsurface while NASA’s [Lunar Reconnaissance Orbiter](https://science.nasa.gov/mission/lro/) (LRO) swooped in to hunt for ice nestled in the Moon’s dark polar craters and to image small boulders and crater rims at scales of 1 meter-per-pixel.\n\nTo align such a diverse collection of measurements, IBM and NASA looked for an AI architecture fluent in multiple scientific dialects. They went with a version of [TerraMind](https://research.ibm.com/blog/terramind-esa-earth-observation-model), the Earth-observation model developed by IBM and the European Space Agency (ESA). TerraMind excels at integrating different data types and resolutions and learning cross-modal correlations to fill in missing or noisy values.\n\nOne area in which scientists will look to the new AI model for help is understanding the Moon’s difficult lighting conditions. A lunar ‘day’ consists of two weeks of sunlight followed by two weeks of darkness, which can dramatically change the appearance of the Moon’s surface features.\n\nThis disorienting effect is amplified by the Moon’s negligible atmosphere. Without clouds or a thick atmosphere like Earth’s to scatter light, the Moon is a land of sharp edges and stark contrasts, its peaks and valleys obscured by dark shadows and bright glare. The Moon is covered in an abrasive, sticky layer of dust and rock called [regolith](https://science.nasa.gov/biological-physical/what-hazards-are-caused-by-lunar-regolith/) that can also create visual distortions depending on the Sun’s angle (in addition to tearing space suits, damaging lung tissue, and wrecking equipment).\n\nAt the poles, the landscape gets even blurrier. Unlike the Earth, the Moon is only slightly tilted relative to its path around the Sun. This means the Sun hangs low on the polar horizon, causing the terrain to cast long shadows which can obscure rocks, craters, and other dangers from astronauts.\n\nUnusual lighting isn’t the only complication tied to lunar data. Scientists often want to bring coarse satellite data into sharper focus. Take lunar weather. The long lunar day combined with the lack of a climate-regulating atmosphere can push temperatures on the Moon as high as 250°F (121°C) in full sun and as low as -410°F (-246°C) in its shadowed craters.\n\nThough scientists generally know where the extremes are, a detailed heat map could aid returning astronauts in finding ice or safer spots to build a base. Scientists have run simulations to try and bump up the resolution of NASA’s thermal data, but such simulations take time, money, and significant computational resources. A higher resolution heat map produced with a lunar AI model like IBM and NASA’s could help to quickly isolate compelling sites to study further with simulation.\n\n## Fire, falling asteroids, and ice\n\nScientists have long probed the Moon’s origins for clues about our home planet. The [leading theory](https://science.nasa.gov/moon/formation/) suggests the Moon was born in a spectacular collision with Earth at the dawn of our solar system. Rocks brought back by Apollo astronauts provided evidence that a Mars-sized object smashed into Earth about 4.5 billion years ago, flinging enough molten debris into space to create the Moon.\n\nFor hundreds of millions of years, a deep ocean of magma covered the Moon’s surface. The magma eventually cooled enough to form a crust, while continued volcanic activity below periodically brought fresh lava to the surface. The volcanic activity is thought to have died down about a billion years ago but recent evidence suggests that some volcanic features, called irregular mare patches, may be significantly younger.\n\n“The ages of these features remain a matter of great debate, so the more we can understand their distribution and properties, the better chance we have of resolving this mystery,” says Michael Barker, a NASA expert on lunar topography who co-led the project with IBM.\n\nThe Moon has neither tectonic plates to heave new rock to the surface nor wind and water erosion to break down mountains and erase the past. Nevertheless, asteroids and micrometeoroids are constantly bombarding its surface and reshaping the terrain. You can tell which parts of the Moon are oldest by counting its craters.\n\nScientists have globally catalogued more than 2 million large craters so far, and NASA wants to document the smaller ones remaining, especially at the poles. Polar craters could provide water and shelter for astronauts and their crops, while high crater rims immersed in near-constant light could charge solar panels to power equipment and scientific instruments.\n\nFor decades, the Moon was thought to be an arid wasteland from the rocks brought home by Apollo astronauts. Then, in 2008, a NASA radar instrument flown aboard India’s Chandrayaan-1 spacecraft, detected [ice in 40 small craters](https://science.nasa.gov/missions/mini-rf/nasa-radar-finds-ice-deposits-at-moons-north-pole/) near the north pole. NASA put the amount of water at 600 million metric tons — enough to fill at least 240,000 Olympic-sized swimming pools.\n\nSeveral missions since then have found water in other forms and places. More recently, NASA’s retired [SOFIA observatory](https://science.nasa.gov/mission/sofia/) discovered water molecules stuck to grains of lunar dust. NASA estimates that each cubic meter of soil across the Moon’s surface could hold as much as a [12-ounce bottle of water](https://www.nasa.gov/news-release/nasas-sofia-discovers-water-on-sunlit-surface-of-moon/). Water was most likely delivered to the Moon over billions of years by falling comets and asteroids, or by solar winds interacting with the lunar soil.\n\n## The next wave of lunar exploration\n\nIBM and NASA’s open-source foundation model is a first pass at translating petabytes of satellite data into a fast and flexible way of modeling the Moon’s surface. To fine-tune the model, the researchers used lightweight low-rank adapters (LoRAs) that left 90% of the base model’s weights frozen. Despite the light touch, the model [matched or outperformed](https://huggingface.co/datasets/nasa-ibm-ai4science/Sombench-pretraining-data/blob/main/SOMBench_Technical_Report.pdf) traditional machine-learning models at a range of tasks.\n\nFaced with the challenge of identifying from an unfamiliar image whether a dark polar crater might contain ice, the NASA-IBM model reduced its error rate by 22% compared to a state-of the-art SwinV2 transformer trained for ice prospecting.\n\n![Lunar\\_Ice-Detection\\_Still\\_16x9\\_Final.jpg](https://research.ibm.com/_next/image?url=https%3A%2F%2Fresearch-website-prod-cms-uploads.s3.us.cloud-object-storage.appdomain.cloud%2FLunar_Ice_Detection_Still_16x9_Final_85e57046ee.jpg&w=3840&q=75)\n\nIn its output image, IBM and NASA's lunar model has highlighted in yellow and white areas it considers more likely to have ice. The model formed its prediction by combining temperature and topographic data, including the slope, aspect, ice-stability depth, and maximum surface temperature of the terrain. Image courtesy of NASA.\n\nThe NASA-IBM model also excelled at crater detection. It could pick out craters at one-meter resolution (where each pixel in an image represents a square meter) as accurately as a Swin model trained for crater detection. At a coarser resolution of 100 meters-per-pixel, the NASA-IBM model outperformed the same model by nearly 19% using half the training data.\n\n![blogArt\\_lunarFM\\_1920x1080\\_craterDetection.png](https://research.ibm.com/_next/image?url=https%3A%2F%2Fresearch-website-prod-cms-uploads.s3.us.cloud-object-storage.appdomain.cloud%2Fblog_Art_lunar_FM_1920x1080_crater_Detection_0e0eb1cd9a.png&w=3840&q=85)\n\nIBM and NASA's new lunar model can help detect newly formed craters. In the above image, a new crater detected after the crash of a SpaceX rocket on August 5 near the Moon's Einstein Crater is highlighted in red against a field of documented craters in blue. Image courtesy of NASA.\n\nAnd when it came to mapping the extent of those mysterious volcanic features, the NASA-IBM model outperformed a task-specific Swin model by 3%, bringing comparable accuracy at lower cost.\n\n![Lunar\\_IMP\\_Still\\_16x9\\_Final.jpg](https://research.ibm.com/_next/image?url=https%3A%2F%2Fresearch-website-prod-cms-uploads.s3.us.cloud-object-storage.appdomain.cloud%2FLunar_IMP_Still_16x9_Final_5345ca6e7d.jpg&w=3840&q=75)\n\nIBM and NASA’s lunar model can map the extents of volcanic features called irregular mare patches (IMPs). The IMP the model has outlined here is thought to contain some of the Moon's youngest volcanic rock. Image courtesy of NASA.\n\nThe US isn’t the only country with ambitious plans for the Moon. Four others have made soft landings there and announced intentions to establish a presence. Minerals are part of the draw. Lunar soil contains helium-3, a rare isotope created by the solar wind and a critical ingredient for making clean nuclear fusion energy. Certain rocks are also rich in [rare earth elements](https://pubs.usgs.gov/fs/2025/3049/fs20253049.pdf) widely used in cellphones and other electronics.\n\nThen there’s science. Astronomers have long dreamed of observing deep space from the Moon’s vantage point. There’s neither earthquakes nor a magnetic field to rattle instruments. And its far side is largely free of satellite interference.\n\n“You’d have to go out past Neptune to find a place this radio-quiet,” said Martin Elvis, an astronomer at the Center for Astrophysics I Harvard and Smithsonian.\n\nOn a recent call, Elvis and a colleague, Malgorzata Sobolewska, ticked off a list of [proposed projects](https://royalsocietypublishing.org/rsta/article/382/2271/20230079/112561/Astronomy-from-the-Moon-the-next-decades-part-2) that ingeniously capitalize on the Moon’s bowl-shaped craters.\n\nThree radio telescopes are scheduled to land in the next few years to listen in to the early universe, a time before planets or stars. One NASA proposal even calls for turning a nearly mile-wide crater into a giant antenna dish. Other projects range from stringing a supersensitive gravitational wave detector across a crater to listen for colliding black holes and dropping an infrared telescope in an ultracold polar crater to study exoplanet atmospheres in the Milky Way.\n\nThe US-led [Artemis Accords](https://www.nasa.gov/news-release/nasa-international-partners-advance-cooperation-with-first-signings-of-artemis-accords/) in 2020 established a set of principles to guide space exploration and cooperation. IBM and NASA’s open-source model can be seen as extending that spirit of discovery and good will.\n\n## New ways of modeling the Moon\n\nThe lunar foundation model is part of a wider shift in creating new scientific knowledge. New computing technologies can not only accelerate familiar calculations, but they can prompt entirely new investigations. Here, AI brings fragmented observations into a common representation, helping scientists uncover patterns, identify uncertainty, and decide where to focus next.\n\nOver time, this model could become part of a broader scientific-computing workflow. Classical supercomputers could continue to handle most workloads, with AI helping to organize observations, build faster approximations of complex systems, and identify promising hypotheses. As quantum computing matures, quantum processors could contribute to simulation and optimization problems that are too difficult or time-consuming for classical machines to handle.\n\n“The next lunar breakthrough could come not from a single new instrument, but from algorithms that allow many instruments — and eventually, computing paradigms — to work together,” said Bernabé-Moreno.",
+                    "createdAt": "2026-09-15T13:54:24.387Z",
+                    "updatedAt": "2026-09-15T13:54:24.387Z"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/posts/{id}": {
+      "get": {
+        "summary": "get post",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "62fc2d7a-cb4a-4715-99a6-1efe607f1394",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/posts/{id}/generate": {
+      "post": {
+        "summary": "generate variant",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "62fc2d7a-cb4a-4715-99a6-1efe607f1394",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/generation/{id}": {
+      "get": {
+        "summary": "get generation job",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "c63bdf12-e89b-4f20-b5ae-3b22324bd6b2",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/posts/{id}/variants": {
+      "get": {
+        "summary": "get post's variants",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "62fc2d7a-cb4a-4715-99a6-1efe607f1394",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": "f9a3b88e-b1d6-4981-962e-1d8030fc1b6a",
+                      "postId": "62fc2d7a-cb4a-4715-99a6-1efe607f1394",
+                      "platformId": "78bfa71a-baff-4a51-8f81-d3adf2c7099c",
+                      "content": "NASA’s Artemis program aims to live and work on the Moon. To support that, IBM and NASA have open‑sourced the NASA‑IBM Lunar Foundation Model – the most comprehensive AI‑driven map of the Moon to date. By merging decades of data from missions such as GRAIL, LRO and Chandrayaan‑1, the model learns a unified representation across multiple sensors, resolutions and viewing angles. It can be quickly adapted for tasks such as:\n\n• Detecting small, previously uncatalogued craters\n• Mapping volcanic features and assessing their ages\n• Identifying polar craters with the highest likelihood of water‑ice\n\nEarly results show a 22 % error‑rate reduction for ice prospecting and up to 19 % improvement in crater detection compared with state‑of‑the‑art vision models, while using half the training data. The model also produces high‑resolution thermal maps that could help crews locate safe landing sites and resources.\n\nBeyond Artemis, the open‑source foundation model embodies the collaborative spirit of the Artemis Accords, enabling researchers worldwide to build on a common lunar data layer. As AI, classical supercomputing, and eventually quantum computing converge, such models will accelerate hypothesis generation, reduce simulation costs, and open new scientific investigations – from radio‑quiet astronomy on the far side to in‑situ resource utilization.\n\nThe lunar AI model is a Rosetta stone for multi‑sensor data, turning petabytes of satellite observations into actionable insight for the next generation of explorers.\n\n#LunarExploration #AI #SpaceScience #Artemis #OpenSource",
+                      "status": "draft",
+                      "rejectionReason": null,
+                      "generationProvider": "groq",
+                      "generationModel": "openai/gpt-oss-120b",
+                      "createdAt": "2026-09-24T16:45:32.221Z",
+                      "updatedAt": "2026-09-24T16:45:32.221Z"
+                    },
+                    {
+                      "id": "3279f8d7-78f2-47ce-89f0-2950779b3983",
+                      "postId": "62fc2d7a-cb4a-4715-99a6-1efe607f1394",
+                      "platformId": "179507c8-3b79-4b38-b728-cdda72e16d67",
+                      "content": "🚀 NASA’s Artemis program is gearing up to not just land on the Moon but to live there. To help astronauts navigate the rugged terrain, IBM and NASA have just open‑sourced the most detailed lunar map ever – the NASA‑IBM Lunar Foundation Model. 🌕 This AI model blends decades of data from missions like GRAIL, LRO and Japan’s lunar probes, merging gravity, topography, temperature and high‑resolution imagery into one unified representation. Why does it matter? The model can quickly spot tiny, uncatalogued craters, hunt for water‑ice in permanently shadowed polar pits, and map recent volcanic patches. Early tests show a 22 % drop in ice‑detection errors and up to 19 % better crater‑identification at coarse scales – all while using half the training data of traditional methods. For future crews, that means faster routes to water, safer landing sites, and better spots for solar panels or habitats. It also opens doors for scientific projects like radio‑quiet telescopes on the far side or even turning a crater into a giant antenna dish. The best part? The model is open source, so researchers worldwide can fine‑tune it for new tasks, from heat‑maps that guide base construction to simulations of lunar weather. It’s a Rosetta stone for multi‑sensor lunar data and a glimpse of how AI, supercomputers and eventually quantum machines will work together to explore our nearest neighbor. Curious to dive in? Check out the model on Hugging Face and imagine what the next lunar breakthrough will look like. 🌌 #Moon #AI #NASA #Artemis #SpaceExploration",
+                      "status": "draft",
+                      "rejectionReason": null,
+                      "generationProvider": "groq",
+                      "generationModel": "openai/gpt-oss-120b",
+                      "createdAt": "2026-09-24T16:45:32.221Z",
+                      "updatedAt": "2026-09-24T16:45:32.221Z"
+                    },
+                    {
+                      "id": "2c6effc2-de61-4520-9eeb-a4ff36a4aaf5",
+                      "postId": "62fc2d7a-cb4a-4715-99a6-1efe607f1394",
+                      "platformId": "3f161369-80e3-43b0-9279-95cf3d497da3",
+                      "content": "IBM & NASA just released an open‑source AI model that fuses decades of lunar data into a single map. It spots tiny craters, ice pockets & volcanic patches—boosting Artemis and future Moon bases. #Moon #AI #Artemis",
+                      "status": "draft",
+                      "rejectionReason": null,
+                      "generationProvider": "groq",
+                      "generationModel": "openai/gpt-oss-120b",
+                      "createdAt": "2026-09-24T16:45:32.221Z",
+                      "updatedAt": "2026-09-24T16:45:32.221Z"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/variants/{id}": {
+      "get": {
+        "summary": "get variant",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "f9a3b88e-b1d6-4981-962e-1d8030fc1b6a",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      },
+      "put": {
+        "summary": "edit variant ",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "2c6effc2-de61-4520-9eeb-a4ff36a4aaf5",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              },
+              "example": {
+                "content": "hi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/variants/{id}/approve": {
+      "post": {
+        "summary": "approve variant",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "3279f8d7-78f2-47ce-89f0-2950779b3983",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/variants/{id}/reject": {
+      "post": {
+        "summary": "reject variant",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "2c6effc2-de61-4520-9eeb-a4ff36a4aaf5",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              },
+              "example": {
+                "reason": "not the best"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/variants/{id}/schedule": {
+      "post": {
+        "summary": "schedule variant",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "f9a3b88e-b1d6-4981-962e-1d8030fc1b6a",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              },
+              "example": {
+                "scheduledAt": "2026-09-24T19:17:00Z"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/schedules/": {
+      "get": {
+        "summary": "list schedules",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": "35f9858f-412f-4293-ac03-b6252bf166b4",
+                      "variantId": "3279f8d7-78f2-47ce-89f0-2950779b3983",
+                      "scheduledAt": "2026-09-24T19:15:00.000Z",
+                      "status": "failed",
+                      "idempotencyKey": "dde50cf25995d148fed78816adacf343942bee6c563f8716a875c05e53acd1d4",
+                      "attemptCount": 5,
+                      "lastError": "Exceeded max attempts after worker crash",
+                      "lockedAt": "2026-09-24T19:35:28.314Z",
+                      "createdAt": "2026-09-24T19:11:12.381Z",
+                      "updatedAt": "2026-09-25T18:04:25.276Z",
+                      "completedAt": "2026-09-25T18:04:25.276Z"
+                    },
+                    {
+                      "id": "ecd3163c-6596-438b-a741-c4142c82db2d",
+                      "variantId": "f9a3b88e-b1d6-4981-962e-1d8030fc1b6a",
+                      "scheduledAt": "2026-09-24T19:17:00.000Z",
+                      "status": "failed",
+                      "idempotencyKey": "53d577a36885497f1fa436a21e13a90a624308fa6a42da1e7530532d576e34b9",
+                      "attemptCount": 5,
+                      "lastError": "Exceeded max attempts after worker crash",
+                      "lockedAt": "2026-09-24T19:37:28.339Z",
+                      "createdAt": "2026-09-24T19:11:37.532Z",
+                      "updatedAt": "2026-09-25T18:04:25.276Z",
+                      "completedAt": "2026-09-25T18:04:25.276Z"
+                    },
+                    {
+                      "id": "7779e550-ae42-4e4f-82e1-c02d1c808a6f",
+                      "variantId": "f9a3b88e-b1d6-4981-962e-1d8030fc1b6a",
+                      "scheduledAt": "2026-09-24T22:05:00.000Z",
+                      "status": "success",
+                      "idempotencyKey": "0ee0695b77d8af7cdafccf17dc7dbdf354fb3e7dfe1e40d54cd798652036efa5",
+                      "attemptCount": 4,
+                      "lastError": null,
+                      "lockedAt": "2026-09-25T18:20:14.495Z",
+                      "createdAt": "2026-09-24T19:07:53.055Z",
+                      "updatedAt": "2026-09-25T18:20:14.512Z",
+                      "completedAt": "2026-09-25T18:20:14.512Z"
+                    },
+                    {
+                      "id": "f920c96c-7b10-46e9-a40a-7523912205a2",
+                      "variantId": "f9a3b88e-b1d6-4981-962e-1d8030fc1b6a",
+                      "scheduledAt": "2026-09-24T22:10:00.000Z",
+                      "status": "success",
+                      "idempotencyKey": "e26fe030fc68c46fbd20e29b2b8a3543080074032d639e0fc879cf85d0fd85e0",
+                      "attemptCount": 4,
+                      "lastError": null,
+                      "lockedAt": "2026-09-25T18:20:14.510Z",
+                      "createdAt": "2026-09-24T19:08:52.076Z",
+                      "updatedAt": "2026-09-25T18:20:14.531Z",
+                      "completedAt": "2026-09-25T18:20:14.531Z"
+                    },
+                    {
+                      "id": "d2df403e-3900-4ce9-b385-2cd92f6b4505",
+                      "variantId": "3279f8d7-78f2-47ce-89f0-2950779b3983",
+                      "scheduledAt": "2026-09-24T22:15:00.000Z",
+                      "status": "success",
+                      "idempotencyKey": "9f16e548a3c8f08fb86e676d5e1703904b118c3422f612c30ffd0bf968e11dde",
+                      "attemptCount": 4,
+                      "lastError": null,
+                      "lockedAt": "2026-09-25T18:20:14.529Z",
+                      "createdAt": "2026-09-24T19:09:43.164Z",
+                      "updatedAt": "2026-09-25T18:20:14.886Z",
+                      "completedAt": "2026-09-25T18:20:14.886Z"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/schedules/{id}/": {
+      "get": {
+        "summary": "get schedule",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "d2df403e-3900-4ce9-b385-2cd92f6b4505",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": "35f9858f-412f-4293-ac03-b6252bf166b4",
+                      "variantId": "3279f8d7-78f2-47ce-89f0-2950779b3983",
+                      "scheduledAt": "2026-09-24T19:15:00.000Z",
+                      "status": "failed",
+                      "idempotencyKey": "dde50cf25995d148fed78816adacf343942bee6c563f8716a875c05e53acd1d4",
+                      "attemptCount": 5,
+                      "lastError": "Exceeded max attempts after worker crash",
+                      "lockedAt": "2026-09-24T19:35:28.314Z",
+                      "createdAt": "2026-09-24T19:11:12.381Z",
+                      "updatedAt": "2026-09-25T18:04:25.276Z",
+                      "completedAt": "2026-09-25T18:04:25.276Z"
+                    },
+                    {
+                      "id": "ecd3163c-6596-438b-a741-c4142c82db2d",
+                      "variantId": "f9a3b88e-b1d6-4981-962e-1d8030fc1b6a",
+                      "scheduledAt": "2026-09-24T19:17:00.000Z",
+                      "status": "failed",
+                      "idempotencyKey": "53d577a36885497f1fa436a21e13a90a624308fa6a42da1e7530532d576e34b9",
+                      "attemptCount": 5,
+                      "lastError": "Exceeded max attempts after worker crash",
+                      "lockedAt": "2026-09-24T19:37:28.339Z",
+                      "createdAt": "2026-09-24T19:11:37.532Z",
+                      "updatedAt": "2026-09-25T18:04:25.276Z",
+                      "completedAt": "2026-09-25T18:04:25.276Z"
+                    },
+                    {
+                      "id": "7779e550-ae42-4e4f-82e1-c02d1c808a6f",
+                      "variantId": "f9a3b88e-b1d6-4981-962e-1d8030fc1b6a",
+                      "scheduledAt": "2026-09-24T22:05:00.000Z",
+                      "status": "success",
+                      "idempotencyKey": "0ee0695b77d8af7cdafccf17dc7dbdf354fb3e7dfe1e40d54cd798652036efa5",
+                      "attemptCount": 4,
+                      "lastError": null,
+                      "lockedAt": "2026-09-25T18:20:14.495Z",
+                      "createdAt": "2026-09-24T19:07:53.055Z",
+                      "updatedAt": "2026-09-25T18:20:14.512Z",
+                      "completedAt": "2026-09-25T18:20:14.512Z"
+                    },
+                    {
+                      "id": "f920c96c-7b10-46e9-a40a-7523912205a2",
+                      "variantId": "f9a3b88e-b1d6-4981-962e-1d8030fc1b6a",
+                      "scheduledAt": "2026-09-24T22:10:00.000Z",
+                      "status": "success",
+                      "idempotencyKey": "e26fe030fc68c46fbd20e29b2b8a3543080074032d639e0fc879cf85d0fd85e0",
+                      "attemptCount": 4,
+                      "lastError": null,
+                      "lockedAt": "2026-09-25T18:20:14.510Z",
+                      "createdAt": "2026-09-24T19:08:52.076Z",
+                      "updatedAt": "2026-09-25T18:20:14.531Z",
+                      "completedAt": "2026-09-25T18:20:14.531Z"
+                    },
+                    {
+                      "id": "d2df403e-3900-4ce9-b385-2cd92f6b4505",
+                      "variantId": "3279f8d7-78f2-47ce-89f0-2950779b3983",
+                      "scheduledAt": "2026-09-24T22:15:00.000Z",
+                      "status": "success",
+                      "idempotencyKey": "9f16e548a3c8f08fb86e676d5e1703904b118c3422f612c30ffd0bf968e11dde",
+                      "attemptCount": 4,
+                      "lastError": null,
+                      "lockedAt": "2026-09-25T18:20:14.529Z",
+                      "createdAt": "2026-09-24T19:09:43.164Z",
+                      "updatedAt": "2026-09-25T18:20:14.886Z",
+                      "completedAt": "2026-09-25T18:20:14.886Z"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/schedules/{id}/attempts": {
+      "get": {
+        "summary": "get schedule's publishing attempts",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "d2df403e-3900-4ce9-b385-2cd92f6b4505",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": "35f9858f-412f-4293-ac03-b6252bf166b4",
+                      "variantId": "3279f8d7-78f2-47ce-89f0-2950779b3983",
+                      "scheduledAt": "2026-09-24T19:15:00.000Z",
+                      "status": "failed",
+                      "idempotencyKey": "dde50cf25995d148fed78816adacf343942bee6c563f8716a875c05e53acd1d4",
+                      "attemptCount": 5,
+                      "lastError": "Exceeded max attempts after worker crash",
+                      "lockedAt": "2026-09-24T19:35:28.314Z",
+                      "createdAt": "2026-09-24T19:11:12.381Z",
+                      "updatedAt": "2026-09-25T18:04:25.276Z",
+                      "completedAt": "2026-09-25T18:04:25.276Z"
+                    },
+                    {
+                      "id": "ecd3163c-6596-438b-a741-c4142c82db2d",
+                      "variantId": "f9a3b88e-b1d6-4981-962e-1d8030fc1b6a",
+                      "scheduledAt": "2026-09-24T19:17:00.000Z",
+                      "status": "failed",
+                      "idempotencyKey": "53d577a36885497f1fa436a21e13a90a624308fa6a42da1e7530532d576e34b9",
+                      "attemptCount": 5,
+                      "lastError": "Exceeded max attempts after worker crash",
+                      "lockedAt": "2026-09-24T19:37:28.339Z",
+                      "createdAt": "2026-09-24T19:11:37.532Z",
+                      "updatedAt": "2026-09-25T18:04:25.276Z",
+                      "completedAt": "2026-09-25T18:04:25.276Z"
+                    },
+                    {
+                      "id": "7779e550-ae42-4e4f-82e1-c02d1c808a6f",
+                      "variantId": "f9a3b88e-b1d6-4981-962e-1d8030fc1b6a",
+                      "scheduledAt": "2026-09-24T22:05:00.000Z",
+                      "status": "success",
+                      "idempotencyKey": "0ee0695b77d8af7cdafccf17dc7dbdf354fb3e7dfe1e40d54cd798652036efa5",
+                      "attemptCount": 4,
+                      "lastError": null,
+                      "lockedAt": "2026-09-25T18:20:14.495Z",
+                      "createdAt": "2026-09-24T19:07:53.055Z",
+                      "updatedAt": "2026-09-25T18:20:14.512Z",
+                      "completedAt": "2026-09-25T18:20:14.512Z"
+                    },
+                    {
+                      "id": "f920c96c-7b10-46e9-a40a-7523912205a2",
+                      "variantId": "f9a3b88e-b1d6-4981-962e-1d8030fc1b6a",
+                      "scheduledAt": "2026-09-24T22:10:00.000Z",
+                      "status": "success",
+                      "idempotencyKey": "e26fe030fc68c46fbd20e29b2b8a3543080074032d639e0fc879cf85d0fd85e0",
+                      "attemptCount": 4,
+                      "lastError": null,
+                      "lockedAt": "2026-09-25T18:20:14.510Z",
+                      "createdAt": "2026-09-24T19:08:52.076Z",
+                      "updatedAt": "2026-09-25T18:20:14.531Z",
+                      "completedAt": "2026-09-25T18:20:14.531Z"
+                    },
+                    {
+                      "id": "d2df403e-3900-4ce9-b385-2cd92f6b4505",
+                      "variantId": "3279f8d7-78f2-47ce-89f0-2950779b3983",
+                      "scheduledAt": "2026-09-24T22:15:00.000Z",
+                      "status": "success",
+                      "idempotencyKey": "9f16e548a3c8f08fb86e676d5e1703904b118c3422f612c30ffd0bf968e11dde",
+                      "attemptCount": 4,
+                      "lastError": null,
+                      "lockedAt": "2026-09-25T18:20:14.529Z",
+                      "createdAt": "2026-09-24T19:09:43.164Z",
+                      "updatedAt": "2026-09-25T18:20:14.886Z",
+                      "completedAt": "2026-09-25T18:20:14.886Z"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    }
+  },
+  "components": {
+    "schemas": {},
+    "responses": {},
+    "securitySchemes": {}
+  },
+  "servers": [],
+  "security": []
+}
