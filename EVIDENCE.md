@@ -230,9 +230,12 @@ sequence in database transactions:
    attempt `success`, schedule `success`, variant `published`; failure → attempt
    `failed` and schedule `failed` (terminal) or back to `pending`.
 
-The publish is at-least-once; the **exactly-once effect** comes from the DB:
-a retried publish hits the success short-circuit or the claim guard, never a
-second real post. The idempotency key is also passed to the adapter
+The publish is at-least-once. The database claim and success short-circuit
+prevent concurrent ownership and skip retries after a recorded success, but
+they cannot prevent a duplicate external post if the worker stops after the
+adapter accepts the post and before TX2 commits. The idempotency key is passed
+to the adapter (`PublisherInput.idempotencyKey`), but each adapter must enforce
+it to prevent duplicates.
 (`PublisherInput.idempotencyKey`).
 
 **Files:** `src/modules/publishing/publishing.service.ts`,
