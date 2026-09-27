@@ -80,7 +80,7 @@ $ npm test
 generation reads only the stored post.
 
 **Proof:** `POST /api/posts` accepts `{"sourceType":"markdown","content":...}` or
-`{"sourceType":"url","url":...}` (`src/modules/posts/posts.route.ts`,
+`{"sourceType":"url","sourceUrl":...}` (`src/modules/posts/posts.route.ts`,
 `src/modules/posts/posts.schema.ts`). For a URL, `PostsService` calls the
 `UrlFetcher`, extracts the article through `ArticleExtractor`, and stores the
 normalized Markdown; `source_type`/`source_url` record how it arrived
