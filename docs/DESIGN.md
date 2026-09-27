@@ -439,7 +439,7 @@ URL:
 { "sourceType": "url", "sourceUrl": "https://example.com/article" }
 ```
 
-> **Divergence:** the current code accepts `url` and ignores `sourceUrl`. The design contract uses `sourceUrl`; the handler must accept it (and may keep `url` as an alias for compatibility).
+> **Divergence:** the handler previously accepted a `url` alias; it now follows this `sourceUrl` contract.
 
 #### Get a post
 
@@ -489,7 +489,7 @@ PUT /api/variants/:id
 
 Edited content must pass platform validation before persistence.
 
-> **Divergence:** the current code registers `PATCH` and does not validate the new content. Design canonical verb is `PUT` (support both if convenient); validation is mandatory.
+> **Divergence:** the current code registers `PATCH` and validates the new content against the platform profile before persistence. Design canonical verb is `PUT` (support both if convenient); validation is implemented.
 
 #### Approve variant
 
@@ -521,7 +521,7 @@ POST /api/variants/:id/schedule
 
 If the variant is not `APPROVED`, return `409` (a `4xx`) with an error message and create no schedule.
 
-> **Divergence:** the current handler reads `scheduleTime`, only checks approval, and never creates a schedule. It must be completed to persist a `pending` schedule and enqueue the publish job.
+> **Divergence:** the handler originally read `scheduleTime` and only checked approval. It now accepts `scheduledAt` and, for an `APPROVED` variant, persists a `pending` schedule with an idempotency key and enqueues the publish job at the slot.
 
 #### Get schedule
 

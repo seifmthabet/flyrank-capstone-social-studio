@@ -8,7 +8,10 @@ import { AppError } from "../../shared/error.js";
 import type { IPlatformRepository } from "../platforms/platforms.types.js";
 import type { ISchedulesRepository } from "../schedules/schedules.types.js";
 import type { IVariantsRepository } from "../variants/variants.types.js";
-import type { IPublishingRepository } from "./publishing.types.js";
+import type {
+    IPublishingRepository,
+    IPublishingService,
+} from "./publishing.types.js";
 
 export type PublisherResolver = (adapterCode: string) => SocialPublisher;
 type TransactionRunner = <T>(
@@ -17,7 +20,7 @@ type TransactionRunner = <T>(
 
 const MAX_PUBLISH_ATTEMPTS = 5;
 
-export class PublishingService {
+export class PublishingService implements IPublishingService {
     constructor(
         private readonly schedulesRepository: ISchedulesRepository,
         private readonly variantsRepository: IVariantsRepository,
@@ -170,5 +173,13 @@ export class PublishingService {
             });
             throw thrown;
         }
+    }
+
+    async getAttemptsByScheduleId(scheduleId: string) {
+        const attempts =
+            await this.publishingRepository.findAttemptsByScheduleId(
+                scheduleId,
+            );
+        return attempts;
     }
 }

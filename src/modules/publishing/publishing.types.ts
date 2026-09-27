@@ -37,6 +37,10 @@ export interface IPublishingRepository {
     findAttemptsByScheduleId(scheduleId: string): Promise<PublishingAttempt[]>;
 }
 
+export interface IPublishingService {
+    getAttemptsByScheduleId(scheduleId: string): Promise<PublishingAttempt[]>;
+}
+
 export interface PublishingJobData {
     scheduledId: string;
 }

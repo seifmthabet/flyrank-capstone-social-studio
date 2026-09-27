@@ -63,4 +63,8 @@ export class SchedulesService implements ISchedulesService {
         }
         return schedule;
     }
+
+    async getSchedules(): Promise<Schedule[]> {
+        return this.schedulesRepository.listSchedules();
+    }
 }

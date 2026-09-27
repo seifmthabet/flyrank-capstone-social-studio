@@ -72,6 +72,13 @@ export class SchedulesRepository implements ISchedulesRepository {
         };
     }
 
+    async listSchedules(): Promise<Schedule[]> {
+        const result = await pool.query<ScheduleRow>(
+            `SELECT ${SCHEDULE_COLUMNS} FROM schedules ORDER BY scheduled_at`,
+        );
+        return result.rows.map(mapScheduleRow);
+    }
+
     async findById(scheduleId: string): Promise<Schedule | null> {
         const result = await pool.query<ScheduleRow>(
             `SELECT ${SCHEDULE_COLUMNS} FROM schedules WHERE id = $1`,

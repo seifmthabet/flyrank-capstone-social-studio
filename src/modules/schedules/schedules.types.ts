@@ -34,7 +34,7 @@ export interface ISchedulesRepository {
         scheduledAt: Date,
         idempotencyKey: string,
     ): Promise<CreateScheduleResult>;
-
+    listSchedules(): Promise<Schedule[]>;
     findById(scheduleId: string): Promise<Schedule | null>;
     findDuePending(now: Date): Promise<Schedule[]>;
     reclaimStaleProcessing(
@@ -56,4 +56,5 @@ export interface ISchedulesService {
         scheduledAt: Date;
     }): Promise<CreateScheduleResult>;
     getSchedule(scheduleId: string): Promise<Schedule>;
+    getSchedules(): Promise<Schedule[]>;
 }

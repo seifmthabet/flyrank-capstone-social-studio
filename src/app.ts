@@ -2,12 +2,14 @@ import express from "express";
 import {
     createGenerationContainer,
     createPostContainer,
+    createPublishingContainer,
     createSchedulesContainer,
     createVariantsContainer,
 } from "./config/container.js";
 import { errorHandler } from "./middlewares/error-handler.js";
 import { createGenerationRoute } from "./modules/generation/generation.route.js";
 import { createPostsRoute } from "./modules/posts/posts.route.js";
+import { createSchedulesRoute } from "./modules/schedules/schedules.route.js";
 import { createVariantsRoute } from "./modules/variants/variants.route.js";
 
 const app = express();
@@ -16,6 +18,7 @@ const { postService } = createPostContainer();
 const { generationService } = createGenerationContainer();
 const { variantsService } = createVariantsContainer();
 const { schedulesService } = createSchedulesContainer();
+const { publishingService } = createPublishingContainer();
 
 app.use(express.json());
 
@@ -24,6 +27,10 @@ app.use("/api", createGenerationRoute({ generationService }));
 app.use(
     "/api/variants",
     createVariantsRoute({ variantsService, schedulesService }),
+);
+app.use(
+    "/api/schedules",
+    createSchedulesRoute({ schedulesService, publishingService }),
 );
 
 app.use(errorHandler);
