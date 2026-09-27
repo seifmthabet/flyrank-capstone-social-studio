@@ -1,3 +1,4 @@
+import type { PoolClient } from "pg";
 import { pool } from "../../database/db.js";
 import type {
     AttemptStatus,
@@ -36,63 +37,67 @@ const mapAttemptRow = (row: AttemptRow): PublishingAttempt => {
 };
 
 export class PublishingRepository implements IPublishingRepository {
-    async createAttempt(input: {
-        scheduleId: string;
-        idempotencyKey: string;
-    }): Promise<PublishingAttempt> {
-        const result = await pool.query<AttemptRow>(
+    async createAttempt(
+        client: PoolClient,
+        input: { scheduleId: string; idempotencyKey: string },
+    ): Promise<PublishingAttempt> {
+        const result = await client.query<AttemptRow>(
             `
-            INSERT INTO publish_attempts (schedule_id, attempt_number, idempotency_key, status)
+        INSERT INTO publish_attempts (schedule_id, attempt_number, idempotency_key, status)
         SELECT $1, COALESCE(MAX(attempt_number), 0) + 1, $2, 'started'
-        FROM publish_attempts
-        WHERE schedule_id = $1
+        FROM publish_attempts WHERE schedule_id = $1
         RETURNING ${ATTEMPT_COLUMNS}
-            `,
+    `,
             [input.scheduleId, input.idempotencyKey],
         );
-
         return mapAttemptRow(result.rows[0] as AttemptRow);
     }
 
     async completeAttempt(
+        client: PoolClient,
         id: string,
-        {
-            status,
-            externalPostId,
-            response,
-            error,
-        }: {
+        input: {
             status: Exclude<AttemptStatus, "started">;
-            externalPostId: string | null;
-            response: unknown | null;
-            error: string | null;
+            externalPostId?: string | null;
+            response?: unknown;
+            error?: string | null;
         },
-    ): Promise<void> {
-        await pool.query(
-            `
-        UPDATE publish_attempts
-        SET status = $2, completed_at = NOW(),
-            external_post_id = $3, response = $4, error = $5
-        WHERE id = $1
-    `,
+    ) {
+        await client.query(
+            `UPDATE publish_attempts
+         SET status = $2, completed_at = NOW(), external_post_id = $3, response = $4, error = $5
+         WHERE id = $1`,
             [
                 id,
-                status,
-                externalPostId ?? null,
-                response === undefined ? null : JSON.stringify(response),
-                error ?? null,
+                input.status,
+                input.externalPostId ?? null,
+                input.response === undefined
+                    ? null
+                    : JSON.stringify(input.response),
+                input.error ?? null,
             ],
         );
+    }
+
+    async findSuccessAttempt(
+        client: PoolClient,
+        scheduleId: string,
+    ): Promise<PublishingAttempt | null> {
+        const result = await client.query<AttemptRow>(
+            `SELECT ${ATTEMPT_COLUMNS} FROM publish_attempts
+         WHERE schedule_id = $1 AND status = 'success'
+         ORDER BY attempt_number DESC LIMIT 1`,
+            [scheduleId],
+        );
+        return result.rows[0] ? mapAttemptRow(result.rows[0]) : null;
     }
 
     async findAttemptsByScheduleId(
         scheduleId: string,
     ): Promise<PublishingAttempt[]> {
         const result = await pool.query<AttemptRow>(
-            `
-        SELECT ${ATTEMPT_COLUMNS} FROM publish_attempts
-        WHERE schedule_id = $1 ORDER BY attempt_number ASC
-    `,
+            `SELECT ${ATTEMPT_COLUMNS} FROM publish_attempts
+         WHERE schedule_id = $1 ORDER BY attempt_number ASC`,
             [scheduleId],
         );
         return result.rows.map(mapAttemptRow);

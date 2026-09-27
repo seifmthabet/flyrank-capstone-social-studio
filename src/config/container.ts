@@ -11,8 +11,14 @@ import type {
 import { PlatformsRepository } from "../modules/platforms/platforms.repository.js";
 import { PostRepository } from "../modules/posts/posts.repository.js";
 import { PostService } from "../modules/posts/posts.service.js";
+import { enqueuePublishingJob } from "../modules/publishing/publishing.queue.js";
+import { PublishingRepository } from "../modules/publishing/publishing.repository.js";
+import { PublishingService } from "../modules/publishing/publishing.service.js";
+import { SchedulesRepository } from "../modules/schedules/schedules.repository.js";
+import { SchedulesService } from "../modules/schedules/schedules.service.js";
 import { VariantsRepository } from "../modules/variants/variants.repository.js";
 import { VariantsService } from "../modules/variants/variants.service.js";
+import { getPublisher } from "../publishing/adapter-registry.js";
 import { env } from "./env.js";
 
 export interface GenerationContainer {
@@ -53,4 +59,27 @@ export const createVariantsContainer = () => {
     );
 
     return { variantsService, variantsRepository };
+};
+
+export const createSchedulesContainer = () => {
+    const schedulesRepository = new SchedulesRepository();
+    const schedulesService = new SchedulesService(
+        schedulesRepository,
+        new VariantsRepository(),
+        enqueuePublishingJob,
+    );
+    return { schedulesService };
+};
+
+export const createPublishingContainer = () => {
+    const publishingRepository = new PublishingRepository();
+    const schedulesRepository = new SchedulesRepository();
+    const publishingService = new PublishingService(
+        schedulesRepository,
+        new VariantsRepository(),
+        new PlatformsRepository(),
+        publishingRepository,
+        getPublisher,
+    );
+    return { publishingService, publishingRepository, schedulesRepository };
 };

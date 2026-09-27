@@ -1,8 +1,12 @@
 import { type Request, type Response, Router } from "express";
+import { AppError } from "../../shared/error.js";
+import { scheduleInputSchema } from "../schedules/schedules.schema.js";
+import type { ISchedulesService } from "../schedules/schedules.types.js";
 import type { IVariantsService } from "./variants.types.js";
 
 export const createVariantsRoute = (deps: {
     variantsService: IVariantsService;
+    schedulesService: ISchedulesService;
 }) => {
     const variantsRouter = Router();
 
@@ -33,15 +37,26 @@ export const createVariantsRoute = (deps: {
     variantsRouter.post(
         "/:id/schedule",
         async (req: Request, res: Response) => {
-            // const { scheduleTime } = req.body;
-            const post = await deps.variantsService.findById(
-                String(req.params.id),
-            );
-            if (post?.status !== "approved") {
-                res.status(409).json({
-                    message: "Variant must be approved before scheduling",
-                });
+            const parsed = scheduleInputSchema.safeParse(req.body);
+
+            if (!parsed.success) {
+                throw AppError.badRequest(
+                    `Invalid schedule payload: ${parsed.error.issues.map((i) => i.message).join("; ")}`,
+                    "INVALID_SCHEDULE_PAYLOAD",
+                    parsed.error.issues.map((i) => ({
+                        path: i.path.join("."),
+                        message: i.message,
+                    })),
+                );
             }
+
+            const { schedule, created } =
+                await deps.schedulesService.createSchedule({
+                    variantId: String(req.params.id),
+                    scheduledAt: new Date(parsed.data.scheduledAt),
+                });
+
+            res.status(created ? 201 : 200).json({ data: schedule, created });
         },
     );
 

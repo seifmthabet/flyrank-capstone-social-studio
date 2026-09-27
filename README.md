@@ -1,18 +1,60 @@
 # Social Media Studio
 
-Turn one blog post into a reviewed, scheduled, multi-platform social media campaign.
+From one blog post to a reviewed, scheduled, multi-platform campaign — without the chaos.
 
-A post is submitted once — as a URL or pasted Markdown — and stored as the single source of truth. From that stored post the system generates one platform-specific variant per configured platform, validates each variant against that platform's constraint profile, routes it through human review, and is designed to publish approved variants on a schedule through a single `SocialPublisher` abstraction.
+<div align="left">
 
-The interesting part of this project is the **publishing workflow**, not the social APIs: validation, human approval, idempotent publishing, and an auditable attempt history that survives worker restarts.
+[![Status](https://img.shields.io/badge/status-working%20prototype-2ea44f)](README.md)
+[![Workflow](https://img.shields.io/badge/workflow-ingest%20%E2%86%92%20review%20%E2%86%92%20schedule-7c3aed)](README.md)
+[![Reliability](https://img.shields.io/badge/reliability-idempotent%20%26%20durable-0ea5e9)](README.md)
+[![Platforms](https://img.shields.io/badge/platforms-telegram%20%2B%20mocks-ff8a00)](README.md)
 
-Full design rationale lives in [`docs/DESIGN.md`](docs/DESIGN.md). Remaining work is tracked in [`TASKS.md`](TASKS.md) and [`PLAN.md`](PLAN.md).
+</div>
+
+`#social-media` `#automation` `#review-workflow` `#publishing` `#idempotency` `#backend`
+
+This project turns one source post into a safe, reviewable social campaign: one source of truth, one platform-specific variant per target, a human approval step, and a durable scheduler that keeps duplicate posts out of the world.
+
+A post is submitted once — as a URL or pasted Markdown — and stored as the single source of truth. From that stored post the system generates one platform-specific variant per configured platform, validates each variant against that platform's constraint profile, routes it through human review, and publishes approved variants on a schedule through a single `SocialPublisher` abstraction.
+
+The real win is the **publishing workflow**: it enforces validation, prevents unapproved variants from going out, keeps retries duplicate-safe, and records every attempt in a visible history.
+
+Full design rationale lives in [`docs/DESIGN.md`](docs/DESIGN.md). Proofs for each requirement are in [`EVIDENCE.md`](EVIDENCE.md); the AI-usage log is in [`BUILDLOG.md`](BUILDLOG.md).
 
 ---
 
-## Project status
+## Why this matters
 
-This is a work in progress. The ingestion, generation, and review foundations are working; the scheduling and publishing core is not implemented yet. This section is kept honest on purpose.
+Most social tooling is either:
+
+- too naive to handle retries safely, or
+- too brittle to survive failed workers and reschedules.
+
+This project is designed around the real-world failures that matter most in production:
+
+- a retry that must not publish the same variant twice
+- a worker that stops mid-batch and must resume cleanly
+- a variant that violates platform rules before it ever reaches a human
+- a single publishing seam that swaps adapters without rewriting business logic
+
+---
+
+## What the system does
+
+- Ingests a blog post as a URL or Markdown
+- Stores the original post as the single source of truth
+- Generates one variant per configured platform
+- Validates length, tone intent, and hashtag rules against each profile
+- Routes variants through review and approval
+- Schedules only approved variants for publish
+- Publishes through one adapter interface with real + mock implementations
+- Records every attempt in a visible publish history
+
+---
+
+## Project status at a glance
+
+Working end to end: ingest → generate → validate → review → schedule → publish → history. The scheduling and publishing core is implemented and duplicate-safe. See [Known limitations](#known-limitations) for the honest remainder.
 
 ### Working today
 
@@ -20,28 +62,27 @@ This is a work in progress. The ingestion, generation, and review foundations ar
 - **Post ingestion**: URL (fetch → Readability → Markdown) and pasted Markdown, stored as the source of truth
 - **Platform constraint profiles** as configuration (rows in `platforms`, seeded)
 - **Variant generation** through a BullMQ queue + worker, using any OpenAI-compatible LLM
-- **Validation** of generated variants against `max_length` and `max_hashtags` before they are stored
-- **Review workflow**: get, edit, approve, and reject variant endpoints
+- **Validation** of generated and edited variants against `max_length` and `max_hashtags` before they are stored
+- **Review workflow**: get, edit, approve, and reject variant endpoints; published variants are locked
 - **Publisher adapter layer**: one `SocialPublisher` interface with `TelegramPublisher`, `MockXPublisher`, and `MockLinkedInPublisher` behind a registry
-- Dockerized PostgreSQL 18 and Redis
+- **Scheduling**: `POST /api/variants/:id/schedule` for approved variants, with a unique idempotency key per variant + slot
+- **Publishing**: a worker claims due schedules from PostgreSQL (the source of truth), publishes through the adapter, and records every attempt
+- **Durable recovery**: stale `processing` schedules are reclaimed on a 30 s sweep and re-driven without duplicates
+- **Publish history**: `GET /api/schedules`, `GET /api/schedules/:id`, and `GET /api/schedules/:id/attempts`
+- **Tests**: 4 unit tests (`npm test`), plus green `typecheck`, `build`, and `lint`
+- Dockerized full stack: API, generation worker, publishing worker, migrate, PostgreSQL, Redis
 
-### Not implemented yet
+### Status notes
 
-- `POST /api/variants/:id/schedule` is a stub: it refuses unapproved variants but creates no schedule for approved ones
-- The publishing worker, durable scheduler, and exactly-once idempotency (the graded core)
-- `publish_attempts` is never written; there is no publish-history endpoint
-- Mock adapters log to the console but do not persist a preview
-- Tone is only requested in the prompt, not enforced by the validator
-- Edited variants are not re-validated against their platform profile
-- Automated tests (`npm test` currently runs 0 tests)
-- `docker compose` starts PostgreSQL and Redis only; the API and worker run on the host
-- `EVIDENCE.md` and `BUILDLOG.md` are not written yet
+- Tone is requested from the model but not machine-enforced
+- Live proofs (real Telegram post, crash/restart transcript) need running infrastructure and credentials — see `EVIDENCE.md`
+- The retry policy (queue attempts vs. schedule ceiling) is bounded and duplicate-safe but not yet fully reconciled — see `EVIDENCE.md` "Known gaps"
 
 ---
 
 ## Architecture
 
-Content flows down the left side. The reliability machinery guards the right side. Every publish is intended to go through the same interface.
+Content flows down the left side. The reliability machinery guards the right side. Every publish goes through the same interface.
 
 ```text
 [blog post: URL or markdown]
@@ -53,15 +94,15 @@ Content flows down the left side. The reliability machinery guards the right sid
                                review workflow:          draft -> approved | rejected
                                               |
                                               v
-                               scheduler (durable, resumable)   <-- NOT IMPLEMENTED
+                               scheduler (durable, resumable)
                                               |
                                               v
-                               SocialPublisher interface        <-- adapters exist, not wired
-                               +-- Telegram / Discord / Mastodon             (real)
-                               +-- MockX + MockLinkedIn                      (yours)
+                               SocialPublisher interface
+                               +-- Telegram                          (real)
+                               +-- MockX + MockLinkedIn              (yours)
                                               |
                                               v
-                      publish history:            one slot = one post, always
+                       publish history:            one slot = one post, always
 ```
 
 Implemented request path:
@@ -81,6 +122,14 @@ AI provider ──► validate (length, hashtags) ──► upsert variants as D
 GET /api/posts/:id/variants
       ▼
 human review: PATCH / approve / reject
+      ▼
+POST /api/variants/:id/schedule
+      │  approved variant → schedule row (idempotency key = variant + slot)
+      ▼
+worker (publishing, 30 s sweep of the DB)
+      │  claim due schedule → publish via adapter → record attempt
+      ▼
+GET /api/schedules/:id/attempts
 ```
 
 > **Generation reads the stored post only.** The source URL is fetched once, at ingestion; generation never re-fetches it (see the invariant in `docs/DESIGN.md`).
@@ -111,10 +160,21 @@ human review: PATCH / approve / reject
 - An OpenAI-compatible LLM API key (free options exist, e.g. Groq's free tier)
 - A Telegram bot token and target chat id for the real adapter (optional to boot, but required by config — see below)
 
-### 1. Start PostgreSQL and Redis
+### 1. Start the infrastructure — or the whole stack
+
+The Compose file has two purposes. Use `-d db cache` for host-run development,
+or bring up **everything** (API, both workers, plus a one-shot `migrate` service
+that applies the schema and seed) with:
 
 ```bash
-docker compose up -d
+# full containerized stack (requires a populated .env with real LLM/Telegram values)
+docker compose up --build -d
+```
+
+For host-run development, start only the databases:
+
+```bash
+docker compose up -d db cache
 ```
 
 ### 2. Install dependencies
@@ -161,16 +221,19 @@ npm run db:seed
 
 > `db:migrate` uses `CREATE TABLE IF NOT EXISTS`. That makes re-runs safe, but it will **not** add new columns to an existing database. If you change the schema, recreate the volume: `docker compose down -v` and repeat from step 1.
 
-### 5. Run the API and the worker
+### 5. Run the API and the workers
 
-In two terminals:
+In three terminals:
 
 ```bash
 # terminal 1 — API
 npm run dev
 
 # terminal 2 — generation worker
-npm run start:worker
+npm run start:generation-worker
+
+# terminal 3 — publishing worker
+npm run start:publish-worker
 ```
 
 Verify the API:
@@ -192,6 +255,16 @@ curl -s -X POST "http://localhost:3000/api/posts/$POST_ID/generate"
 
 # list the generated variants
 curl -s "http://localhost:3000/api/posts/$POST_ID/variants"
+
+# approve a variant, then schedule it (the schedule gets a unique idempotency key)
+VARIANT_ID=<variant id from the list above>
+curl -s -X POST "http://localhost:3000/api/variants/$VARIANT_ID/approve"
+curl -s -X POST "http://localhost:3000/api/variants/$VARIANT_ID/schedule" \
+  -H 'Content-Type: application/json' -d '{"scheduledAt":"2030-01-01T12:00:00.000Z"}'
+
+# once the publishing worker has run (within 30 s of the slot), inspect history
+curl -s "http://localhost:3000/api/schedules"
+curl -s "http://localhost:3000/api/schedules/<schedule_id>/attempts"
 ```
 
 Or create your own post:
@@ -203,7 +276,7 @@ curl -s -X POST http://localhost:3000/api/posts \
 
 curl -s -X POST http://localhost:3000/api/posts \
   -H 'Content-Type: application/json' \
-  -d '{"sourceType":"url","url":"https://example.com/article"}'
+  -d '{"sourceType":"url","sourceUrl":"https://example.com/article"}'
 ```
 
 ---
@@ -233,13 +306,14 @@ Secrets live in `.env` only. `.env` is git-ignored; `.env.example` ships placeho
 | -------------------- | ---------------------------------------------------- |
 | `npm run dev`        | Start the API with file watching                     |
 | `npm start`          | Start the API once                                   |
-| `npm run start:worker` | Start the BullMQ generation worker                 |
+| `npm run start:generation-worker` | Start the BullMQ generation worker     |
+| `npm run start:publish-worker`    | Start the publishing worker + 30 s sweep |
 | `npm run build`      | Type-check and emit to `dist/` (`tsconfig.build.json`) |
 | `npm run typecheck`  | `tsc --noEmit` over `src` and `test`                 |
 | `npm run lint`       | Biome check                                          |
 | `npm run lint:fix`   | Biome check with fixes                               |
 | `npm run format`     | Biome format (write)                                 |
-| `npm test`           | Node test runner (no tests yet)                      |
+| `npm test`           | Node test runner (colocated unit tests)              |
 | `npm run db:migrate` | Apply `src/database/schema.sql`                      |
 | `npm run db:seed`    | Insert platform profiles and a sample post           |
 
@@ -255,7 +329,7 @@ Platform rules are **configuration, not code**. They live as rows in the `platfo
 | X        | `mock_x`        | 280        | Concise and engaging           | 3            | `MockXPublisher`        |
 | LinkedIn | `mock_linkedin` | 3000       | Professional and informative   | 5            | `MockLinkedInPublisher` |
 
-A variant that violates its profile is rejected before it can enter the review workflow. Tone is currently requested from the model in the prompt; deterministic tone rules are planned.
+A variant that violates its profile (length or hashtags) is rejected with an error naming the broken rule before it reaches review — whether it is generated or edited by hand. Tone is requested from the model in the prompt but not machine-enforced.
 
 ---
 
@@ -303,13 +377,11 @@ interface SocialPublisher {
 }
 ```
 
-Implementations live in `src/publishing/adapters/` and are resolved by an adapter registry. Telegram is the one real publishing target; X and LinkedIn are mock adapters that record what *would* have been published. Swapping a mock for a real adapter must not touch business logic.
+Implementations live in `src/publishing/adapters/` and are resolved by an adapter registry. Telegram is the one real publishing target; X and LinkedIn are mock adapters that record what *would* have been published. The publishing worker resolves the adapter for a schedule's platform and calls `publish()`; swapping a mock for a real adapter means changing the `adapter` value on the platform row, not business logic.
 
-> The adapters and registry exist today, but no code path invokes them yet — the publishing worker that calls `publish()` is part of the unfinished scheduling core.
+### Idempotency
 
-### Idempotency (design)
-
-A logical publish is identified by **variant + scheduled slot**, represented as a unique idempotency key on `schedules`. The guarantee being built:
+A logical publish is identified by **variant + scheduled slot**, represented as a unique idempotency key on `schedules` (`sha256(variantId:iso)`). The guarantee at runtime:
 
 ```text
 publish → worker failure → worker restart
@@ -317,7 +389,7 @@ publish → worker failure → worker restart
         → zero duplicate posts
 ```
 
-The database enforces uniqueness of the logical schedule; the worker will coordinate publish and publish-history state. This is not yet implemented at runtime.
+Before any adapter call, the publishing service checks the schedule's attempts: a prior success is returned from the database (the adapter is never called again), and the claim itself is a conditional row update so two workers cannot own the same schedule. Attempts and their results are recorded in `publish_attempts`.
 
 ---
 
@@ -341,14 +413,14 @@ Field names below reflect the implementation. Where the design document uses a d
 | `GET`  | `/api/posts/:id/variants` | Done   | List a post's variants           |
 | `GET`  | `/api/generation/:id`     | Done   | Get a generation job             |
 
-Create a post with either shape. The URL field is `url` (the design document calls it `sourceUrl`; the code does not yet accept `sourceUrl`):
+Create a post with either shape:
 
 ```json
 { "sourceType": "markdown", "content": "..." }
 ```
 
 ```json
-{ "sourceType": "url", "url": "https://example.com/article" }
+{ "sourceType": "url", "sourceUrl": "https://example.com/article" }
 ```
 
 ### Variant review
@@ -370,19 +442,23 @@ Create a post with either shape. The URL field is `url` (the design document cal
 
 ### Scheduling and history
 
-| Method | Route                         | Status         | Purpose                        |
-| ------ | ----------------------------- | -------------- | ------------------------------ |
-| `POST` | `/api/variants/:id/schedule`  | **Stub**       | Schedule an approved variant   |
-| `GET`  | `/api/schedules/:id`          | Not implemented | Get a schedule                 |
-| `GET`  | `/api/schedules/:id/attempts` | Not implemented | Full publish history           |
+| Method | Route                         | Status | Purpose                        |
+| ------ | ----------------------------- | ------ | ------------------------------ |
+| `POST` | `/api/variants/:id/schedule`  | Done   | Schedule an approved variant   |
+| `GET`  | `/api/schedules`              | Done   | List all schedules             |
+| `GET`  | `/api/schedules/:id`          | Done   | Get a schedule                 |
+| `GET`  | `/api/schedules/:id/attempts` | Done   | Full publish history           |
 
-The schedule endpoint is not functional yet. It returns `409` for a variant that is not `APPROVED`, and for an approved variant it currently sends no response. The intended request body is:
+Scheduling an `APPROVED` variant creates a schedule row and enqueues a BullMQ job at the slot. The request body is:
 
 ```json
 { "scheduledAt": "2026-09-10T18:00:00Z" }
 ```
 
-Scheduling a variant that is not `APPROVED` must return `4xx` and create no schedule.
+Scheduling a variant that is not `APPROVED` returns `409 Conflict` with an error
+message and creates no schedule. Each schedule carries a unique idempotency key
+for its variant + slot, so re-scheduling the same slot is a no-op rather than a
+duplicate post.
 
 ---
 
@@ -396,26 +472,31 @@ src/
 │   ├── env.ts               # Validated environment configuration
 │   └── container.ts         # Manual dependency injection
 ├── database/
-│   ├── db.ts                # PostgreSQL connection pool
+│   ├── db.ts                # PostgreSQL pool + dbTransaction helper
 │   ├── schema.sql           # Tables, constraints, indexes
 │   └── seed.sql             # Platform profiles + sample post
 ├── ingestion/               # URL fetch, Readability extraction, Markdown conversion
 ├── ai/                      # AI provider, prompt, variant validator
 ├── publishing/
 │   ├── social-publisher.ts  # The one publisher interface
-│   ├── adapter-registery.ts # Adapter registry
+│   ├── adapter-registry.ts  # Adapter registry (config-driven platform → publisher)
 │   └── adapters/            # Telegram + mock X + mock LinkedIn
 ├── modules/
 │   ├── posts/               # route / service / repository / types / schema
 │   ├── platforms/           # repository / types
 │   ├── variants/            # route / service / repository / types
-│   └── generation/          # route / service / repository / queue / types
+│   ├── generation/          # route / service / repository / queue / types
+│   ├── schedules/           # route / service / repository / types / schema
+│   └── publishing/          # service / repository / queue / scheduler / types
 ├── workers/
-│   └── generation.worker.ts # BullMQ generation worker
+│   ├── generation.worker.ts # BullMQ generation worker
+│   └── publishing.worker.ts # publishing worker + due-schedule sweep
 ├── middlewares/             # error handler
 ├── shared/                  # AppError
 └── scripts/                 # migrate, seed
 
+EVIDENCE.md                  # Requirement-by-requirement proofs
+BUILDLOG.md                  # AI-usage log
 docs/
 └── DESIGN.md                # Design document
 ```
@@ -424,17 +505,13 @@ docs/
 
 ## Known limitations
 
-- **Scheduling and publishing are not implemented.** There is no publishing worker, no durable scheduler, and no runtime idempotency.
-- **The schedule endpoint is a stub** — see above.
-- **No publish history.** `publish_attempts` is written nowhere and exposed by no endpoint.
-- **Mock adapters do not persist previews**; they log to the console. The adapters are not invoked by any request path yet.
-- **Edited variants are not re-validated** against their platform profile.
-- **Tone is prompt-only**, not machine-enforced.
+- **Tone is prompt-only**, not machine-enforced by the validator; length and hashtags are enforced.
+- **Retry policy is partially reconciled.** The BullMQ queue uses `attempts: 3` with exponential backoff while the schedule terminal ceiling is `attempt_count >= 5`; a thrown failure can be swept and re-driven until the ceiling catches it. This is duplicate-safe (EVIDENCE.md, "Known gaps"), and a single exported policy plus a dead-letter queue is planned.
+- **Live proofs pending.** A real Telegram post and a worker-crash/restart transcript require running infrastructure and real credentials; see `EVIDENCE.md`.
+- **Coverage is thin.** Only the scheduling service/repository have unit tests; the scary cases (blocked variant, duplicate publish, adapter swap) are not yet automated.
 - **Configuration is strict**: the API will not boot without LLM and Telegram values, even for endpoints that do not use them.
-- **API and worker are not containerized.** `docker compose` provides PostgreSQL and Redis only.
-- **No tests** and no `EVIDENCE.md` / `BUILDLOG.md` yet.
-- **Design/code divergences**: the design document specifies `sourceUrl` and `PUT`; the code uses `url` and `PATCH`. These should be reconciled.
-- **Schema changes require a fresh volume**, because the migration relies on `CREATE TABLE IF NOT EXISTS` and does not add columns to existing tables.
+- **Design/code divergences**: `docs/DESIGN.md` specifies `PUT` as the canonical edit verb; the code registers `PATCH`. Editing does validate content against the platform profile. This should be reconciled or documented.
+- **Schema changes require a fresh volume**, because the migration relies on `CREATE TABLE IF NOT EXISTS` and does not add columns to existing tables. Use `docker compose down -v` when the schema changes. The Compose `migrate` service applies schema + seed automatically.
 
 ---
 
