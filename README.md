@@ -121,7 +121,7 @@ AI provider ──► validate (length, hashtags) ──► upsert variants as D
       ▼
 GET /api/posts/:id/variants
       ▼
-human review: PATCH / approve / reject
+human review: POST / approve / reject
       ▼
 POST /api/variants/:id/schedule
       │  approved variant → schedule row (idempotency key = variant + slot)
@@ -428,7 +428,7 @@ Create a post with either shape:
 | Method  | Route                        | Status | Purpose                                |
 | ------- | ---------------------------- | ------ | -------------------------------------- |
 | `GET`   | `/api/variants/:id`          | Done   | Get a variant                          |
-| `PATCH` | `/api/variants/:id`          | Done   | Edit content (not re-validated yet)    |
+| `PUT`   | `/api/variants/:id`          | Done   | Edit content (not re-validated yet)    |
 | `POST`  | `/api/variants/:id/approve`  | Done   | Approve                                |
 | `POST`  | `/api/variants/:id/reject`   | Done   | Reject                                 |
 
@@ -510,7 +510,6 @@ docs/
 - **Live proofs pending.** A real Telegram post and a worker-crash/restart transcript require running infrastructure and real credentials; see `EVIDENCE.md`.
 - **Coverage is thin.** Only the scheduling service/repository have unit tests; the scary cases (blocked variant, duplicate publish, adapter swap) are not yet automated.
 - **Configuration is strict**: the API will not boot without LLM and Telegram values, even for endpoints that do not use them.
-- **Design/code divergences**: `docs/DESIGN.md` specifies `PUT` as the canonical edit verb; the code registers `PATCH`. Editing does validate content against the platform profile. This should be reconciled or documented.
 - **Schema changes require a fresh volume**, because the migration relies on `CREATE TABLE IF NOT EXISTS` and does not add columns to existing tables. Use `docker compose down -v` when the schema changes. The Compose `migrate` service applies schema + seed automatically.
 
 ---
